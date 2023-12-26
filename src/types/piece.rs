@@ -1,4 +1,4 @@
-use super::colour::Colour;
+use super::{colour::Colour, piece_type::PieceType};
 
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Piece(pub i32, pub Colour);
@@ -100,5 +100,9 @@ impl Piece {
 
     pub fn index(index: usize) -> Self {
         Self::try_index(index).unwrap_or_else(|| panic!("Index {} is out of range.", index))
+    }
+
+    pub fn from_tuple(piece: PieceType, colour: Colour) -> Self {
+        Self(piece as i32, colour)
     }
 }

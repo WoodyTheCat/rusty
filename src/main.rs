@@ -1,6 +1,7 @@
 mod bot;
 mod fen;
 mod magics;
+mod movegen;
 mod types;
 
 use colored::{Colorize, CustomColor};

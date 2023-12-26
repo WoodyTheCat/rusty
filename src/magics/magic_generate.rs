@@ -22,7 +22,7 @@ fn magic_index(entry: &MagicEntry, blockers: BB) -> usize {
     entry.offset as usize + index
 }
 
-fn slider_moves(slider_deltas: &[(i8, i8)], square: Square, blockers: BB) -> BB {
+fn slider_moves(slider_deltas: &[(i8, i8)], square: SquareIndex, blockers: BB) -> BB {
     let mut moves = BB::EMPTY;
     for &(df, dr) in slider_deltas {
         let mut ray = square;

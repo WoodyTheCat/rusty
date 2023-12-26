@@ -5,6 +5,7 @@ include!("magics.rs");
 /// Responsible for generating the precomputed magic move tables
 // pub mod magic_generate;
 
+#[derive(Debug)]
 pub struct MagicEntry {
     pub mask: u64,
     pub magic: u64,
@@ -13,13 +14,13 @@ pub struct MagicEntry {
 }
 
 fn magic_index(entry: &MagicEntry, blockers: BB) -> usize {
-    let blockers = blockers.0 & entry.mask;
-    let hash = blockers.wrapping_mul(entry.magic);
-    let index = (hash >> entry.shift) as usize;
+    let blockers: u64 = blockers & entry.mask;
+    let hash: u64 = blockers.wrapping_mul(entry.magic);
+    let index: usize = (hash >> entry.shift) as usize;
     entry.offset as usize + index
 }
 
-pub fn get_slider_moves(square: Square, blockers: BB, ortho: bool) -> BB {
+pub fn get_slider_moves(square: SquareIndex, blockers: BB, ortho: bool) -> BB {
     if ortho {
         get_rook_moves(square, blockers)
     } else {
@@ -27,21 +28,26 @@ pub fn get_slider_moves(square: Square, blockers: BB, ortho: bool) -> BB {
     }
 }
 
-fn get_rook_moves(square: Square, blockers: BB) -> BB {
-    let magic = &ROOK_MAGICS[square as usize];
-    BB(ROOK_MOVES[magic_index(magic, blockers)])
+fn get_rook_moves(square: SquareIndex, blockers: BB) -> BB {
+    let magic: &MagicEntry = &ROOK_MAGICS[square as usize];
+    dbg!(magic);
+    ROOK_MOVES[magic_index(magic, blockers)]
 }
 
-fn get_bishop_moves(square: Square, blockers: BB) -> BB {
-    let magic = &BISHOP_MAGICS[square as usize];
-    BB(BISHOP_MOVES[magic_index(magic, blockers)])
+fn get_bishop_moves(square: SquareIndex, blockers: BB) -> BB {
+    let magic: &MagicEntry = &BISHOP_MAGICS[square as usize];
+    dbg!(magic);
+    BISHOP_MOVES[magic_index(magic, blockers)]
 }
 
 pub fn test() {
-    let blockers = BB(0x20770001400C302);
-    let square = Square::F5;
+    let blockers: BB = 0x20770001400C302;
+    let square: Square = Square::C8;
     println!("Blockers: {:#?}", blockers);
-    println!("Square: {:#b}", square as u64);
-    println!("Rook moves: {:#?}", get_rook_moves(square, blockers));
-    println!("Bishop moves: {:#?}", get_bishop_moves(square, blockers));
+    println!("Square: {:?}", square);
+    println!("Rook moves: {:#?}", get_rook_moves(square as u64, blockers));
+    println!(
+        "Bishop moves: {:#?}",
+        get_bishop_moves(square as u64, blockers)
+    );
 }

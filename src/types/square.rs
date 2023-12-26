@@ -4,7 +4,7 @@ use super::{
 };
 
 crate::types::helpers::simple_enum! {
-    #[derive(Clone, Copy)]
+    #[derive(Clone, Copy, Debug)]
     pub enum File {
         A,
         B,
@@ -17,7 +17,7 @@ crate::types::helpers::simple_enum! {
     }
 }
 crate::types::helpers::simple_enum! {
-    #[derive(Clone, Copy)]
+    #[derive(Clone, Copy, Debug)]
     pub enum Rank {
         First,
         Second,
@@ -31,7 +31,8 @@ crate::types::helpers::simple_enum! {
 }
 
 crate::types::helpers::simple_enum! {
-    #[derive(Clone, Copy)]
+    #[derive(Clone, Copy, Debug)]
+    #[repr(u64)]
     pub enum Square {
         A1, B1, C1, D1, E1, F1, G1, H1,
         A2, B2, C2, D2, E2, F2, G2, H2,
@@ -70,21 +71,23 @@ crate::types::helpers::enum_char_conv! {
     }
 }
 
+pub type SquareIndex = u64;
+
 impl ToBitboard for File {
     fn to_bitboard(&self) -> BB {
-        BB(0x0101010101010101 << *self as u8)
+        0x0101010101010101 << *self as u8
     }
 }
 
 impl ToBitboard for Rank {
     fn to_bitboard(&self) -> BB {
-        BB(0xff << (*self as u8 * 8))
+        0xff << (*self as u8 * 8)
     }
 }
 
 impl ToBitboard for Square {
     fn to_bitboard(&self) -> BB {
-        BB(1 << *self as u8)
+        1 << *self as u8
     }
 }
 
@@ -100,6 +103,13 @@ impl Square {
     pub fn rank(self) -> Rank {
         Rank::index(self as usize >> 3)
     }
+
+    pub fn parse(notation: &str) -> Self {
+        let next = || notation.chars().next().unwrap();
+        let square =
+            "abcdefgh".find(next()).unwrap() + next().to_string().parse::<usize>().ok().unwrap();
+        Self::index(square)
+    }
 }
 
 impl Rank {
@@ -108,8 +118,13 @@ impl Rank {
         Self::index_const(Self::Eighth as usize - self as usize)
     }
 
+    /// Get a rank bitboard, 1 being A and 8 being H
+    pub fn rank(index: u8) -> BB {
+        0b11111111 << index - 1
+    }
+
     pub const fn bitboard(self) -> BB {
-        BB(0b11111111 << (self as u8 * 8))
+        0b11111111 << (self as u8 * 8)
     }
 
     pub fn relative_to(self, colour: Colour) -> Self {
