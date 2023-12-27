@@ -38,13 +38,9 @@ fn slider_moves(slider_deltas: &[(i8, i8)], square: SquareIndex, blockers: BB) -
     moves
 }
 
-fn make_table(
-    table_size: usize,
-    slider_deltas: &[(i8, i8)],
-    magics: &[MagicEntry; Square::NUM],
-) -> Vec<BB> {
+fn make_table(table_size: usize, slider_deltas: &[(i8, i8)], magics: &[MagicEntry; 64]) -> Vec<BB> {
     let mut table = vec![BB::EMPTY; table_size];
-    for &square in &Square::ALL {
+    for &square in &0..64 {
         let magic_entry = &magics[square as usize];
         let mask = BB(magic_entry.mask);
 
@@ -75,14 +71,10 @@ fn write_table(name: &str, table: &[BB], out: &mut impl Write) -> std::io::Resul
 
 fn write_magics(
     name: &str,
-    magics: &[MagicEntry; Square::NUM],
+    magics: &[MagicEntry; 64],
     out: &mut impl Write,
 ) -> std::io::Result<()> {
-    write!(
-        out,
-        "const {}_MAGICS: &[MagicEntry; Square::NUM] = &[",
-        name
-    )?;
+    write!(out, "const {}_MAGICS: &[MagicEntry; 64] = &[", name)?;
     for entry in magics {
         write!(
             out,

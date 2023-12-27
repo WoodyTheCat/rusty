@@ -1,6 +1,10 @@
 use crate::types::{
-    board_state::BoardState, colour::Colour, piece::Piece, piece_type::PieceType,
-    position::Position, square::Square,
+    board_state::BoardState,
+    colour::Colour,
+    piece::Piece,
+    piece_type::PieceType,
+    position::Position,
+    square::{SquareIndex, SquareIndexMethods},
 };
 
 pub const START: &str = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
@@ -58,8 +62,9 @@ pub fn parse(notation: &str) -> BoardState {
         segments[2].contains("q"),
     ];
 
-    let en_passant_file: Option<Square> = if segments[3].chars().next().unwrap() != '-' {
-        Some(Square::parse(segments[3].as_str()))
+    let en_passant_target: Option<SquareIndex> = if segments[3].chars().next().unwrap_or('-') != '-'
+    {
+        Some(SquareIndex::parse(segments[3].as_str()))
     } else {
         None
     };
@@ -67,10 +72,10 @@ pub fn parse(notation: &str) -> BoardState {
     return BoardState {
         position,
         active_player: to_move,
-        en_passant: en_passant_file,
+        en_passant: en_passant_target,
         castling_rights,
-        half_moves: segments[4].parse::<i32>().unwrap(),
-        full_moves: segments[5].parse::<i32>().unwrap(),
+        half_moves: segments[4].parse().unwrap(),
+        full_moves: segments[5].parse().unwrap(),
     };
 }
 
@@ -80,13 +85,7 @@ pub fn board_to_fen(board: &BoardState) -> String {
     for rank in (0..=7).rev() {
         let mut empty_files: i8 = 0;
         for file in 0..=7 {
-            // TODO: Write a better search here ↓
-            // let board: Option<usize> = board
-            //     .position
-            //     .iter()
-            //     .position(|bb: &BB| (bb & 1 << r * 8 + f) != 0);
-
-            let piece: Option<(PieceType, Colour)> = board.at(Square::index(rank * 8 + file));
+            let piece: Option<(PieceType, Colour)> = board.at(rank * 8 + file);
 
             if let Some((piece, colour)) = piece {
                 if empty_files != 0 {
@@ -129,16 +128,14 @@ pub fn board_to_fen(board: &BoardState) -> String {
         ""
     };
 
-    // TODO: En-passant ↓
-    fen += " -";
-    // let epFileIndex: i8 = board.en_passant_file - 1;
-    // let epRankIndex: i8 = if board.to_move == 0 { 5 } else { 2 };
+    // En-passant
+    fen += " ";
 
-    // if epFileIndex == -1 || !EnPassantCanBeCaptured(epFileIndex, epRankIndex, board) {
-    // fen += "-";
-    // } else {
-    //     fen += utils::square_name_from_index(epFileIndex * 8 + epRankIndex).as_str();
-    // }
+    if let Some(square) = board.en_passant {
+        fen += square.to_algebraic().as_str()
+    } else {
+        fen += "-";
+    }
 
     // 50 move counter
     fen += " ";

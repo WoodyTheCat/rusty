@@ -1,5 +1,5 @@
 crate::types::helpers::simple_enum! {
-    #[derive(Copy, Clone)]
+    #[derive(Copy, Clone, Debug)]
     pub enum PieceType {
         Pawn,
         Knight,

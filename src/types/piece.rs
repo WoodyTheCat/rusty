@@ -85,22 +85,22 @@ impl std::fmt::Debug for Piece {
 }
 
 impl Piece {
-    pub const fn try_index(index: usize) -> Option<Self> {
-        match index {
-            0 => Some(Self(0, Colour::White)),
-            1 => Some(Self(1, Colour::White)),
-            2 => Some(Self(2, Colour::White)),
-            3 => Some(Self(3, Colour::White)),
-            4 => Some(Self(4, Colour::White)),
-            5 => Some(Self(5, Colour::White)),
-            6 => Some(Self(6, Colour::White)),
-            _ => None,
-        }
-    }
+    // pub const fn try_index(index: usize) -> Option<Self> {
+    //     match index {
+    //         0 => Some(Self(0, Colour::White)),
+    //         1 => Some(Self(1, Colour::White)),
+    //         2 => Some(Self(2, Colour::White)),
+    //         3 => Some(Self(3, Colour::White)),
+    //         4 => Some(Self(4, Colour::White)),
+    //         5 => Some(Self(5, Colour::White)),
+    //         6 => Some(Self(6, Colour::White)),
+    //         _ => None,
+    //     }
+    // }
 
-    pub fn index(index: usize) -> Self {
-        Self::try_index(index).unwrap_or_else(|| panic!("Index {} is out of range.", index))
-    }
+    // pub fn index(index: usize) -> Self {
+    //     Self::try_index(index).unwrap_or_else(|| panic!("Index {} is out of range.", index))
+    // }
 
     pub fn from_tuple(piece: PieceType, colour: Colour) -> Self {
         Self(piece as i32, colour)

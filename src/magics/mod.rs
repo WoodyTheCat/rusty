@@ -30,13 +30,11 @@ pub fn get_slider_moves(square: SquareIndex, blockers: BB, ortho: bool) -> BB {
 
 fn get_rook_moves(square: SquareIndex, blockers: BB) -> BB {
     let magic: &MagicEntry = &ROOK_MAGICS[square as usize];
-    dbg!(magic);
     ROOK_MOVES[magic_index(magic, blockers)]
 }
 
 fn get_bishop_moves(square: SquareIndex, blockers: BB) -> BB {
     let magic: &MagicEntry = &BISHOP_MAGICS[square as usize];
-    dbg!(magic);
     BISHOP_MOVES[magic_index(magic, blockers)]
 }
 

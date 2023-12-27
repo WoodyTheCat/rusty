@@ -1,5 +1,5 @@
 #[rustfmt::skip]
-pub const ROOK_MAGICS: &[MagicEntry; Square::NUM] = &[
+pub const ROOK_MAGICS: &[MagicEntry; 64] = &[
     MagicEntry { mask: 0x000101010101017E, magic: 0x5080008011400020, shift: 52, offset: 0 },
     MagicEntry { mask: 0x000202020202027C, magic: 0x0140001000402000, shift: 53, offset: 4096 },
     MagicEntry { mask: 0x000404040404047A, magic: 0x0280091000200480, shift: 53, offset: 6144 },
@@ -69,7 +69,7 @@ pub const ROOK_MAGICS: &[MagicEntry; Square::NUM] = &[
 pub const ROOK_TABLE_SIZE: usize = 102400;
 
 #[rustfmt::skip]
-pub const BISHOP_MAGICS: &[MagicEntry; Square::NUM] = &[
+pub const BISHOP_MAGICS: &[MagicEntry; 64] = &[
     MagicEntry { mask: 0x0040201008040200, magic: 0x2020420401002200, shift: 58, offset: 0 },
     MagicEntry { mask: 0x0000402010080400, magic: 0x05210A020A002118, shift: 59, offset: 64 },
     MagicEntry { mask: 0x0000004020100A00, magic: 0x1110040454C00484, shift: 59, offset: 96 },

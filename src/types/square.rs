@@ -73,6 +73,38 @@ crate::types::helpers::enum_char_conv! {
 
 pub type SquareIndex = u64;
 
+pub trait SquareIndexMethods {
+    fn parse(notation: &str) -> Self;
+    fn to_algebraic(&self) -> String;
+}
+
+impl SquareIndexMethods for SquareIndex {
+    fn parse(notation: &str) -> Self {
+        let mut chars = notation.chars();
+        let file: u64 = "abcdefgh".find(chars.next().unwrap()).unwrap_or(0) as u64;
+        let a: char = chars.next().unwrap();
+        let rank: u64 = (a.to_digit(10).unwrap_or(0) - 1) as u64;
+        rank * 8 + file
+    }
+
+    fn to_algebraic(&self) -> String {
+        let rank: String = ((*self >> 3) + 1).to_string();
+        let file: String = "abcdefgh"
+            .chars()
+            .nth(*self as usize % 8)
+            .unwrap_or('-')
+            .to_string();
+
+        file + rank.as_str()
+    }
+}
+
+impl ToBitboard for SquareIndex {
+    fn to_bitboard(&self) -> BB {
+        1 << self
+    }
+}
+
 impl ToBitboard for File {
     fn to_bitboard(&self) -> BB {
         0x0101010101010101 << *self as u8
@@ -104,11 +136,15 @@ impl Square {
         Rank::index(self as usize >> 3)
     }
 
-    pub fn parse(notation: &str) -> Self {
+    pub fn from_algebraic(notation: &str) -> Self {
         let next = || notation.chars().next().unwrap();
-        let square =
-            "abcdefgh".find(next()).unwrap() + next().to_string().parse::<usize>().ok().unwrap();
-        Self::index(square)
+        let rank: usize = "abcdefgh".find(next()).unwrap_or(0);
+        let file: usize = next().to_digit(10).unwrap_or(0) as usize;
+        Self::index(rank * 8 + file)
+    }
+
+    pub fn to_square_index(&self) -> SquareIndex {
+        *self as u64
     }
 }
 

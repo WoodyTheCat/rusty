@@ -73,7 +73,7 @@ fn knight_destinations(square: SquareIndex) -> BB {
 fn king_destinations(square: SquareIndex) -> BB {
     let b: BB = 1 << square;
     let mut r: BB = 0;
-    for dir in MoveType::king_itr() {
+    for dir in MoveType::king_iter() {
         r |= b.shift(*dir);
     }
 

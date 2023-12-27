@@ -6,13 +6,14 @@ use super::{
     piece::Piece,
     piece_type::PieceType,
     position::Position,
-    square::Square,
+    square::SquareIndex,
 };
 
+#[derive(Clone, Copy)]
 pub struct BoardState {
     pub position: Position,
     pub active_player: Colour,
-    pub en_passant: Option<Square>,
+    pub en_passant: Option<SquareIndex>,
     pub castling_rights: [bool; 4],
     pub half_moves: i32,
     pub full_moves: i32,
@@ -32,7 +33,7 @@ impl Default for BoardState {
 }
 
 impl BoardState {
-    pub fn at(&self, square: Square) -> Option<(PieceType, Colour)> {
+    pub fn at(&self, square: SquareIndex) -> Option<(PieceType, Colour)> {
         let sq: BB = square.to_bitboard();
         let pos: Position = self.position;
         let piece: Option<usize> = pos.pieces_bb.iter().position(|&bb| (bb & sq) != 0);
@@ -52,7 +53,7 @@ impl std::fmt::Display for BoardState {
         for i in (0..=7).rev() {
             writeln!(f, " +---+---+---+---+---+---+---+---+")?;
             for j in 0..=7 {
-                let piece: Option<(PieceType, Colour)> = self.at(Square::index(i * 8 + j));
+                let piece: Option<(PieceType, Colour)> = self.at(i * 8 + j);
 
                 if let Some((piece, colour)) = piece {
                     write!(f, " | {:?}", Piece::from_tuple(piece, colour))?;

@@ -17,10 +17,11 @@ impl Default for Position {
 
 impl Position {
     pub fn bb(&self, colour: Colour, piece: PieceType) -> BB {
-        self.pieces_bb[piece] & self.colours_bb[colour]
+        let out: BB = self.pieces_bb[piece as usize];
+        out & self.colours_bb[colour]
     }
 
-    pub fn bb_color(&self, color: Colour) -> BB {
+    pub fn bb_colour(&self, color: Colour) -> BB {
         self.colours_bb[color]
     }
 
@@ -29,6 +30,6 @@ impl Position {
     }
 
     pub fn bb_all(&self) -> BB {
-        self.colours_bb[0] | self.colours_bb[0]
+        self.colours_bb[0] | self.colours_bb[1]
     }
 }
