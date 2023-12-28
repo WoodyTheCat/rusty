@@ -1,6 +1,6 @@
 use crate::types::{
     r#move::{Move, MoveType},
-    square::{File, Rank, SquareIndex},
+    square::SquareIndex,
     *,
 };
 
@@ -130,9 +130,9 @@ impl BBMethods for BB {
 
     fn debug(&self) {
         print!("bitboard {{");
-        for &rank in Rank::ALL.iter().rev() {
+        for rank in (0..8).rev() {
             print!("\n   ");
-            for &file in &File::ALL {
+            for file in 0..8 {
                 if self.has(1 << (rank as u64 * 8 + file as u64)) {
                     print!(" X");
                 } else {

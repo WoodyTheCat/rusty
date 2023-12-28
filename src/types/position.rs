@@ -1,4 +1,4 @@
-use super::{bitboard::BB, colour::Colour, piece_type::PieceType};
+use super::{bitboard::BB, colour::Colour, piece_type::PieceType, square::SquareIndex};
 
 #[derive(Clone, Copy)]
 pub struct Position {
@@ -21,15 +21,25 @@ impl Position {
         out & self.colours_bb[colour]
     }
 
-    pub fn bb_colour(&self, color: Colour) -> BB {
-        self.colours_bb[color]
+    pub fn bb_colour(&self, colour: Colour) -> BB {
+        self.colours_bb[colour]
     }
 
     pub fn bb_piece(&self, piece: PieceType) -> BB {
-        self.pieces_bb[piece]
+        self.pieces_bb[piece as usize]
     }
 
     pub fn bb_all(&self) -> BB {
         self.colours_bb[0] | self.colours_bb[1]
+    }
+
+    pub fn add_piece(&mut self, colour: Colour, piece: PieceType, square: SquareIndex) {
+        self.colours_bb[colour] |= 1 << square;
+        self.pieces_bb[piece] |= 1 << square;
+    }
+
+    pub fn remove_piece(&mut self, colour: Colour, piece: PieceType, square: SquareIndex) {
+        self.colours_bb[colour] ^= 1 << square;
+        self.pieces_bb[piece] ^= 1 << square;
     }
 }

@@ -3,6 +3,7 @@ use crate::{fen, magics, movegen::MoveGen, types::board_state::BoardState};
 #[derive(Default)]
 pub struct Bot {
     board: BoardState,
+    gen: MoveGen,
 }
 
 impl Bot {
@@ -24,6 +25,8 @@ impl Bot {
             "pos" => self.command_pos(args),
             "fen" => self.command_fen(args),
             "d" => self.command_draw(args),
+
+            // "debug" => movegen::test::en_passant_discovered_check(),
             x => println!("Unexpected command: {}", x),
         }
     }
@@ -39,9 +42,7 @@ impl Bot {
     fn command_eval(&mut self, _args: Vec<&str>) {}
 
     fn command_moves(&mut self, _args: Vec<&str>) {
-        let mut gen: MoveGen = MoveGen::default();
-
-        gen.all_moves(&self.board);
+        self.gen.all_moves(&self.board);
     }
 
     fn command_perft(&mut self, _args: Vec<&str>) {}

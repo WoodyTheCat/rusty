@@ -8,7 +8,7 @@ pub struct Move {
     pub kind: MoveType,
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum MoveType {
     Capture,
     EnPassantCapture,
@@ -23,7 +23,6 @@ pub enum MoveType {
     Quiet,
     CastleKing,
     CastleQueen,
-    Null,
 }
 
 impl MoveType {

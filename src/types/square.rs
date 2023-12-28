@@ -1,7 +1,4 @@
-use super::{
-    bitboard::{ToBitboard, BB},
-    colour::Colour,
-};
+use super::bitboard::{ToBitboard, BB};
 
 crate::types::helpers::simple_enum! {
     #[derive(Clone, Copy, Debug)]
@@ -117,43 +114,7 @@ impl ToBitboard for Rank {
     }
 }
 
-impl ToBitboard for Square {
-    fn to_bitboard(&self) -> BB {
-        1 << *self as u8
-    }
-}
-
-impl Square {
-    pub fn new(file: File, rank: Rank) -> Self {
-        Self::index(((rank as usize) << 3) | file as usize)
-    }
-
-    pub fn file(self) -> File {
-        File::index(self as usize & 0b000111)
-    }
-
-    pub fn rank(self) -> Rank {
-        Rank::index(self as usize >> 3)
-    }
-
-    pub fn from_algebraic(notation: &str) -> Self {
-        let next = || notation.chars().next().unwrap();
-        let rank: usize = "abcdefgh".find(next()).unwrap_or(0);
-        let file: usize = next().to_digit(10).unwrap_or(0) as usize;
-        Self::index(rank * 8 + file)
-    }
-
-    pub fn to_square_index(&self) -> SquareIndex {
-        *self as u64
-    }
-}
-
 impl Rank {
-    #[inline(always)]
-    pub const fn flip(self) -> Self {
-        Self::index_const(Self::Eighth as usize - self as usize)
-    }
-
     /// Get a rank bitboard, 1 being A and 8 being H
     pub fn rank(index: u8) -> BB {
         0b11111111 << index - 1
@@ -161,13 +122,5 @@ impl Rank {
 
     pub const fn bitboard(self) -> BB {
         0b11111111 << (self as u8 * 8)
-    }
-
-    pub fn relative_to(self, colour: Colour) -> Self {
-        if Colour::White == colour {
-            self
-        } else {
-            self.flip()
-        }
     }
 }
