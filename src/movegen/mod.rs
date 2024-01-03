@@ -1,7 +1,7 @@
 use std::time::Instant;
 
 use crate::{
-    magics,
+    fen, magics,
     types::{
         bitboard::{PieceItr, Shift, ToBitboard, BB},
         board_state::BoardState,
@@ -34,8 +34,76 @@ impl Default for MoveGen {
 const MAX_MOVES: usize = 256;
 
 impl MoveGen {
-    pub fn all_moves(&mut self, board: &BoardState) {
+    pub fn trace_generate(&mut self, board: &BoardState) -> Vec<Move> {
+        println!("\n -- Trace Move Generation -- \n");
+
+        println!("{}", board);
+
+        assert_eq!(
+            &fen::parse("rnbqkb1r/1ppppppp/p6n/8/8/3P4/PPP1PPPP/RN1QKBNR w KQkq - 1 2"),
+            board
+        );
+
         let now: Instant = Instant::now();
+
+        let mut list: Vec<Move> = Vec::with_capacity(MAX_MOVES);
+
+        self.board = *board;
+
+        Self::gen_pseudo_legal_pawn_moves(board, &mut list);
+        Self::gen_pseudo_legal_castles(board, &mut list);
+        self.gen_pseudo_legal_moves(board, &mut list, Knight);
+
+        let mut king_moves = vec![];
+
+        self.gen_pseudo_legal_moves(board, &mut king_moves, King);
+
+        println!("King moves: {:?}", king_moves);
+
+        list.append(&mut king_moves);
+
+        self.gen_pseudo_legal_moves(board, &mut list, Rook);
+        self.gen_pseudo_legal_moves(board, &mut list, Bishop);
+        self.gen_pseudo_legal_moves(board, &mut list, Queen);
+
+        let king_square: SquareIndex = board
+            .position
+            .bb(board.active_player, King)
+            .trailing_zeros() as SquareIndex;
+
+        println!("King square: {}", king_square);
+
+        if king_square > 63 {
+            return list;
+        }
+
+        let blockers: BB = self.calculate_blockers(board, king_square);
+        let checkers: BB = self.attacks_to(board, king_square);
+
+        println!("Checkers: {}", checkers);
+        println!("Blockers: {}", blockers);
+
+        println!("Before legal check: ");
+        for mv in &list {
+            println!("{}", mv);
+        }
+
+        list.retain(|mv: &Move| self.is_legal(board, mv, blockers, checkers, king_square));
+
+        println!("After legal check: ");
+        for mv in &list {
+            println!("{}", mv);
+        }
+
+        println!("Elapsed: {}ms", now.elapsed().as_millis());
+
+        println!("\n -- End Trace Move Generation -- \n");
+
+        list
+    }
+
+    pub fn all_moves(&mut self, board: &BoardState) -> Vec<Move> {
+        // let now: Instant = Instant::now();
         let mut list: Vec<Move> = Vec::with_capacity(MAX_MOVES);
 
         self.board = *board;
@@ -53,15 +121,22 @@ impl MoveGen {
             .position
             .bb(board.active_player, King)
             .trailing_zeros() as SquareIndex;
+
+        if king_square > 63 {
+            return list;
+        }
+
         let blockers: BB = self.calculate_blockers(board, king_square);
         let checkers: BB = self.attacks_to(board, king_square);
 
         list.retain(|mv: &Move| self.is_legal(board, mv, blockers, checkers, king_square));
 
-        dbg!(&list);
-        dbg!(list.len());
+        // dbg!(&list);
+        // dbg!(list.len());
 
-        println!("Elapsed: {}ms", now.elapsed().as_millis());
+        // println!("Elapsed: {}ms", now.elapsed().as_millis());
+
+        list
     }
 
     fn gen_pseudo_legal_moves(&self, board: &BoardState, list: &mut Vec<Move>, piece: PieceType) {
@@ -242,7 +317,7 @@ impl MoveGen {
         let from: SquareIndex = mv.from;
         let is_castle: bool = mv.kind == MoveType::CastleKing || mv.kind == MoveType::CastleQueen;
 
-        if (board.position.bb(board.active_player, King) & from.to_bitboard()) != 0 && !is_castle {
+        if king_square == from && !is_castle {
             !self.is_attacked(board, mv.to)
         } else {
             self.is_legal_non_king_move(board, mv, blockers, checkers, king_square)
@@ -403,7 +478,9 @@ impl MoveGen {
         }
 
         // attacked by king
-        self.lookup.moves(square, PieceType::King) & board.position.bb(!us, PieceType::King) != 0
+        let attacked_by_king = self.lookup.moves(square, King) & board.position.bb(!us, King) != 0;
+
+        attacked_by_king
     }
 
     fn pawn_attacks(square: SquareIndex, colour: Colour) -> BB {
@@ -416,6 +493,10 @@ impl MoveGen {
 
     fn calculate_blockers(&self, board: &BoardState, king_square: SquareIndex) -> BB {
         let us: Colour = board.active_player;
+
+        if king_square >= 64 {
+            println!("UH-OH");
+        }
 
         let opponent_queen: BB = board.position.bb(!us, Queen);
         let opponent_ortho: BB = board.position.bb(!us, Rook) | opponent_queen;
@@ -1108,5 +1189,25 @@ pub mod test {
         let mut list: Vec<Move> = Vec::with_capacity(256);
         MoveGen::gen_pseudo_legal_pawn_moves(&pos, &mut list);
         assert_eq!(list.len(), 2);
+    }
+
+    #[test]
+    fn king_move_removed() {
+        let board = fen::parse("rnbqkb1r/1ppppppp/p6n/8/8/3P4/PPP1PPPP/RN1QKBNR w KQkq - 1 2");
+        let gen = MoveGen::default();
+        assert_eq!(
+            true,
+            gen.is_legal(
+                &board,
+                &Move {
+                    from: 4,
+                    to: 11,
+                    kind: Quiet
+                },
+                0,
+                0,
+                4
+            )
+        );
     }
 }
