@@ -1,11 +1,11 @@
 use super::{
     bitboard::BB,
-    colour::Colour,
-    piece_type::PieceType,
-    r#move::{
+    chess_move::{
         Move,
         MoveType::{self, *},
     },
+    colour::Colour,
+    piece_type::PieceType,
     square::{Square::*, SquareIndex},
 };
 
@@ -26,8 +26,7 @@ impl Default for Position {
 
 impl Position {
     pub fn bb(&self, colour: Colour, piece: PieceType) -> BB {
-        let out: BB = self.pieces_bb[piece as usize];
-        out & self.colours_bb[colour as usize]
+        self.pieces_bb[piece as usize] & self.colours_bb[colour as usize]
     }
 
     pub fn bb_colour(&self, colour: Colour) -> BB {

@@ -2,8 +2,8 @@ use crate::{
     magics,
     types::{
         bitboard::{Shift, BB},
+        chess_move::MoveType,
         piece_type::PieceType::{self, *},
-        r#move::MoveType,
         square::SquareIndex,
         *,
     },

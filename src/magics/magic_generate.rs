@@ -29,7 +29,7 @@ fn slider_moves(slider_deltas: &[(i8, i8)], square: SquareIndex, blockers: BB) -
         while !blockers.has(ray) {
             if let Some(shifted) = ray.try_offset(df, dr) {
                 ray = shifted;
-                moves |= ray.to_bitboard();
+                moves.merge(ray.to_bitboard());
             } else {
                 break;
             }

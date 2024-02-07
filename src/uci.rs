@@ -1,38 +1,55 @@
 use std::io::{stdin, BufRead};
 
-use itertools::Itertools;
-
 use crate::{
     fen,
     movegen::MoveGen,
     search::{perft::Perft, NegaMax},
-    types::{board_state::BoardState, r#move::Move},
+    types::{board_state::BoardState, chess_move::Move, EngineError},
 };
 
-pub fn uci_loop() {
-    let mut board: BoardState = fen::parse(fen::START);
+pub fn uci_loop() -> Result<(), EngineError> {
+    let mut board: BoardState = fen::parse(fen::START).ok().unwrap();
     let mut searcher: NegaMax = NegaMax::default();
+
     loop {
-        let mut buffer: String = String::new();
-        stdin().lock().read_line(&mut buffer).unwrap();
-
-        let key: Vec<&str> = buffer.split_ascii_whitespace().collect_vec();
-
-        match &(*key.first().unwrap()).to_string()[..] {
-            "quit" => break,
-            "uci" => init_uci(),
-            "pos" => board = update_board(&key[1..].join(" ")),
-            "go" => go(&mut board, &mut searcher, &key),
-            "isready" => println!("readyok"),
-            "ucinewgame" => {}
-            "d" => println!("\n{}", board),
-            "perft" => {
-                let mut perft: Perft = Perft::default();
-                perft.verbose(&board, key[1].parse::<i32>().ok().unwrap());
+        match uci_execute(&mut board, &mut searcher) {
+            Err(e) => {
+                dbg!(e);
             }
-            _ => println!("Command not understood"),
-        }
+            Ok(_) => {}
+        };
     }
+}
+
+pub fn uci_execute(board: &mut BoardState, searcher: &mut NegaMax) -> Result<(), EngineError> {
+    let mut buffer: String = String::new();
+    stdin().lock().read_line(&mut buffer).unwrap();
+    let input: &str = buffer.trim_matches(char::is_whitespace);
+
+    let (command, rest) = input.split_once(char::is_whitespace).unwrap_or((input, ""));
+
+    match command {
+        "uci" => init_uci(),
+        "pos" => {
+            *board = update_board(rest)?;
+        }
+
+        "go" => go(board, searcher, rest),
+        "moves" => moves(&board),
+        "isready" => println!("readyok"),
+        "ucinewgame" => {}
+        "d" => println!("\n{}", board),
+        "perft" => {
+            let mut perft: Perft = Perft::default();
+            perft.verbose(
+                &board,
+                rest.parse::<i32>().map_err(Into::<EngineError>::into)?,
+            )?;
+        }
+        _ => println!("Command not understood"),
+    }
+
+    Ok(())
 }
 
 fn init_uci() {
@@ -41,25 +58,27 @@ fn init_uci() {
     println!("uciok");
 }
 
-fn update_board(args: &String) -> BoardState {
-    let tokens: Vec<&str> = args.split_ascii_whitespace().collect_vec();
-    let keyword: &&str = tokens.first().unwrap();
-    let mut pos: BoardState = match &keyword[..] {
-        "start" => fen::parse(fen::START),
-        "fen" => return fen::parse(&args[4..]),
-        _ => panic!("Unknown parameter to position!"),
-    };
+fn update_board<'b>(args: &str) -> Result<BoardState, EngineError> {
+    let (keyword, rest) = args.split_once(char::is_whitespace).unwrap_or((args, ""));
 
-    let move_keyword: Option<&&str> = tokens.get(1);
+    if keyword == "start" {
+        let mut pos: BoardState = fen::parse(fen::START)?;
+        let tokens: Vec<&str> = rest.split(char::is_whitespace).collect();
 
-    if move_keyword.is_some() {
-        apply_moves(&mut pos, &tokens[2..]);
+        if tokens[0] == "move" {
+            let mut gen: MoveGen = MoveGen::default();
+            for notation in tokens[1..].iter() {
+                apply_move(&mut pos, *notation, &mut gen)?;
+            }
+        }
+
+        Ok(pos)
+    } else {
+        fen::parse(rest)
     }
-
-    pos
 }
 
-fn go(pos: &mut BoardState, searcher: &mut NegaMax, data: &[&str]) {
+fn go(pos: &mut BoardState, searcher: &mut NegaMax, data: &str) {
     // let movetime = data[2].parse::<u128>().unwrap();
     // searcher.move_time((movetime / 1000) - 1);
     // searcher.move_time(movetime);
@@ -69,16 +88,19 @@ fn go(pos: &mut BoardState, searcher: &mut NegaMax, data: &[&str]) {
     // println!("bestmove {}", mv.mv.to_algebraic());
 }
 
-fn apply_moves(pos: &mut BoardState, moves: &[&str]) {
+fn moves(board: &BoardState) {
     let mut gen: MoveGen = MoveGen::default();
+    let move_list: Vec<Move> = gen.trace_generate(board).ok().unwrap();
+}
 
-    for mv_str in moves.iter() {
-        let move_list: Vec<Move> = gen.all_moves(pos);
-        let mv: Option<&Move> = move_list
-            .iter()
-            .find(|x: &&Move| x.to_notation() == *mv_str);
-        pos.make_move(mv.unwrap());
-    }
+fn apply_move(pos: &mut BoardState, notation: &str, gen: &mut MoveGen) -> Result<(), EngineError> {
+    let move_list: Vec<Move> = gen.all_moves(pos)?;
+    let mv: Option<&Move> = move_list
+        .iter()
+        .find(|x: &&Move| x.to_notation() == notation);
+    pos.make_move(mv.unwrap());
+
+    Ok(())
 }
 
 ///////////////////////////////

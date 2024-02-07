@@ -1,14 +1,12 @@
 // use std::time::Instant;
 
 use crate::{
-    fen,
     movegen::MoveGen,
     types::{
         board_state::BoardState,
-        colour::Colour,
-        piece_type::PieceType,
-        r#move::{Move, MoveType::*},
+        chess_move::{Move, MoveType::*},
         square::{Square::*, SquareIndex},
+        EngineError,
     },
 };
 
@@ -19,8 +17,8 @@ pub struct Perft {
 }
 
 impl Perft {
-    pub fn verbose(&mut self, board: &BoardState, depth: i32) -> usize {
-        let moves: Vec<Move> = self.gen.all_moves(board);
+    pub fn verbose(&mut self, board: &BoardState, depth: i32) -> Result<usize, EngineError> {
+        let moves: Vec<Move> = self.gen.all_moves(board)?;
 
         // if depth <= 1 {
         //     println!("Possible moves: {}", moves.len());
@@ -45,7 +43,7 @@ impl Perft {
                 trace = true;
             }
 
-            let subtotal: usize = self.perft_inner(&new_board, depth - 1, trace);
+            let subtotal: usize = self.perft_inner(&new_board, depth - 1, trace)?;
 
             println!("{}: {}", mv, subtotal);
 
@@ -59,36 +57,41 @@ impl Perft {
         println!("\nNodes searched: {}", sum);
         println!("Moves searched: {}", moves.len());
 
-        sum
+        Ok(sum)
     }
 
-    pub fn perft(&mut self, depth: i32) {
-        // let now: Instant = Instant::now();
-        self.count += self.perft_inner(&fen::parse(fen::START), depth, false);
+    // pub fn perft(&mut self, depth: i32) {
+    //     // let now: Instant = Instant::now();
+    //     self.count += self.perft_inner(&fen::parse(fen::START), depth, false);
 
-        // println!("Time elapsed: {}ms", now.elapsed().as_millis());
-        println!("Nodes: {}", self.count);
-    }
+    //     // println!("Time elapsed: {}ms", now.elapsed().as_millis());
+    //     println!("Nodes: {}", self.count);
+    // }
 
-    fn perft_inner(&mut self, board: &BoardState, depth: i32, trace: bool) -> usize {
+    fn perft_inner(
+        &mut self,
+        board: &BoardState,
+        depth: i32,
+        trace: bool,
+    ) -> Result<usize, EngineError> {
         let moves: Vec<Move>;
 
         if trace {
-            moves = self.gen.trace_generate(board);
+            moves = self.gen.trace_generate(board)?;
         } else {
-            moves = self.gen.all_moves(board);
+            moves = self.gen.all_moves(board)?;
         }
 
         if depth <= 1 {
-            return moves.len();
+            return Ok(moves.len());
         }
 
         let mut sum: usize = 0;
         for mv in &moves {
             let new_board: BoardState = board.clone_with_move(mv);
-            sum += self.perft_inner(&new_board, depth - 1, trace);
+            sum += self.perft_inner(&new_board, depth - 1, trace)?;
         }
-        sum
+        Ok(sum)
     }
 
     pub fn reset(&mut self) {

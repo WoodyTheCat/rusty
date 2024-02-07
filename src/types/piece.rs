@@ -1,10 +1,18 @@
-use super::{colour::Colour, piece_type::PieceType};
+use super::{colour::Colour, piece_type::PieceType, EngineError};
 
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Piece(pub i32, pub Colour);
 
-impl Into<String> for Piece {
-    fn into(self) -> String {
+// i32:
+//  Pawn
+//  Knight
+//  Bishop
+//  Rook
+//  Queen
+//  King
+
+impl Into<Result<String, EngineError>> for Piece {
+    fn into(self) -> Result<String, EngineError> {
         let mut c = match self.0 {
             0 => 'P',
             1 => 'N',
@@ -12,12 +20,18 @@ impl Into<String> for Piece {
             3 => 'R',
             4 => 'Q',
             5 => 'K',
-            _ => panic!("Unknown piece whilst serialising: {}", self.0),
+            _ => {
+                return Err(EngineError(String::from(format!(
+                    "[Piece::Into::into] Unknown piece whilst serialising: {}",
+                    self.0
+                ))));
+            }
         };
         if self.1 == Colour::Black {
             c = c.to_lowercase().to_string().chars().next().unwrap();
         };
-        c.to_string()
+
+        Ok(c.to_string())
     }
 }
 
@@ -45,13 +59,12 @@ impl std::fmt::Debug for Piece {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         if f.alternate() {
             let piece = match self.0 {
-                0 => "Null",
-                1 => "Pawn",
-                2 => "Rook",
-                3 => "Knight",
-                4 => "Bishop",
-                5 => "Queen",
-                6 => "King",
+                0 => "Pawn",
+                1 => "Knight",
+                2 => "Bishop",
+                3 => "Rook",
+                4 => "Queen",
+                5 => "King",
                 x => panic!("Unrecognised piece while formatting: {}", x),
             };
             writeln!(

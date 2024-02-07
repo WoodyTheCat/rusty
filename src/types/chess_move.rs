@@ -1,6 +1,6 @@
 use crate::types::{
+    chess_move::MoveType::*,
     piece_type::PieceType::{self, *},
-    r#move::MoveType::*,
     square::SquareIndex,
     *,
 };
@@ -76,13 +76,13 @@ impl Move {
         }
     }
 
-    pub fn to_notation(&self) -> &str {
+    pub fn to_notation(&self) -> String {
         let mut notation: String = "".to_string();
 
         notation += self.from.to_algebraic().as_str();
         notation += self.to.to_algebraic().as_str();
 
-        ""
+        notation
     }
 }
 

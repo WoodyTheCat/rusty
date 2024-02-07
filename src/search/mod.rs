@@ -1,3 +1,4 @@
+// pub mod eval;
 pub mod perft;
 
 use crate::movegen::MoveGen;

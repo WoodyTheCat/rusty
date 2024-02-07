@@ -38,7 +38,7 @@ fn get_bishop_moves(square: SquareIndex, blockers: BB) -> BB {
     BISHOP_MOVES[magic_index(magic, blockers)]
 }
 
-pub fn test() {
+pub fn _test() {
     let blockers: BB = 0x20770001400C302;
     let square: Square = Square::C8;
     println!("Blockers: {:#?}", blockers);

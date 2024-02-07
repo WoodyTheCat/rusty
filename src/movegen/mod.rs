@@ -1,19 +1,19 @@
 use std::time::Instant;
 
 use crate::{
-    fen, magics,
+    magics,
     types::{
         bitboard::{PieceItr, Shift, ToBitboard, BB},
         board_state::BoardState,
+        chess_move::{MoveType::*, *},
         colour::Colour::{self, *},
         piece_type::PieceType::{self, *},
-        r#move::{MoveType::*, *},
         square::SquareIndex,
         *,
     },
 };
 
-use self::lookup::Lookup;
+use self::{lookup::Lookup, EngineError};
 
 mod lookup;
 
@@ -34,15 +34,15 @@ impl Default for MoveGen {
 const MAX_MOVES: usize = 256;
 
 impl MoveGen {
-    pub fn trace_generate(&mut self, board: &BoardState) -> Vec<Move> {
+    pub fn trace_generate(&mut self, board: &BoardState) -> Result<Vec<Move>, EngineError> {
         println!("\n -- Trace Move Generation -- \n");
 
         println!("{}", board);
 
-        assert_eq!(
-            &fen::parse("rnbqkb1r/1ppppppp/p6n/8/8/3P4/PPP1PPPP/RN1QKBNR w KQkq - 1 2"),
-            board
-        );
+        // assert_eq!(
+        //     &fen::parse("rnbqkb1r/1ppppppp/p6n/8/8/3P4/PPP1PPPP/RN1QKBNR w KQkq - 1 2")?,
+        //     board
+        // );
 
         let now: Instant = Instant::now();
 
@@ -74,14 +74,23 @@ impl MoveGen {
         println!("King square: {}", king_square);
 
         if king_square > 63 {
-            return list;
+            return Err(EngineError(String::from(
+                "[MoveGen::all_moves()] No king piece found",
+            )));
         }
+
+        println!("Before legality: {}ms", now.elapsed().as_millis());
 
         let blockers: BB = self.calculate_blockers(board, king_square);
         let checkers: BB = self.attacks_to(board, king_square);
 
         println!("Checkers: {}", checkers);
         println!("Blockers: {}", blockers);
+
+        println!(
+            "After blockers and checkers: {}ms",
+            now.elapsed().as_millis()
+        );
 
         println!("Before legal check: ");
         for mv in &list {
@@ -99,11 +108,10 @@ impl MoveGen {
 
         println!("\n -- End Trace Move Generation -- \n");
 
-        list
+        Ok(list)
     }
 
-    pub fn all_moves(&mut self, board: &BoardState) -> Vec<Move> {
-        // let now: Instant = Instant::now();
+    pub fn all_moves(&mut self, board: &BoardState) -> Result<Vec<Move>, EngineError> {
         let mut list: Vec<Move> = Vec::with_capacity(MAX_MOVES);
 
         self.board = *board;
@@ -123,7 +131,11 @@ impl MoveGen {
             .trailing_zeros() as SquareIndex;
 
         if king_square > 63 {
-            return list;
+            println!("{king_square:?}");
+            println!("{board:x?}");
+            return Err(EngineError(String::from(
+                "[MoveGen::all_moves()] No king piece found",
+            )));
         }
 
         let blockers: BB = self.calculate_blockers(board, king_square);
@@ -131,12 +143,7 @@ impl MoveGen {
 
         list.retain(|mv: &Move| self.is_legal(board, mv, blockers, checkers, king_square));
 
-        // dbg!(&list);
-        // dbg!(list.len());
-
-        // println!("Elapsed: {}ms", now.elapsed().as_millis());
-
-        list
+        Ok(list)
     }
 
     fn gen_pseudo_legal_moves(&self, board: &BoardState, list: &mut Vec<Move>, piece: PieceType) {
@@ -494,7 +501,7 @@ impl MoveGen {
     fn calculate_blockers(&self, board: &BoardState, king_square: SquareIndex) -> BB {
         let us: Colour = board.active_player;
 
-        if king_square >= 64 {
+        if king_square > 63 {
             println!("UH-OH");
         }
 
@@ -586,11 +593,11 @@ pub mod test {
         types::{
             bitboard::BB,
             board_state::BoardState,
-            piece_type::PieceType::*,
-            r#move::{
+            chess_move::{
                 Move,
                 MoveType::{self, *},
             },
+            piece_type::PieceType::*,
             square::{
                 Square::{self, *},
                 SquareIndex,
@@ -616,7 +623,9 @@ pub mod test {
     #[test]
     fn cannot_capture_checking_piece_while_pinned() {
         let gen: MoveGen = MoveGen::default();
-        let pos: BoardState = fen::parse("2r5/8/8/2B5/8/8/8/2K3r1 w - - 0 1");
+        let pos: BoardState = fen::parse("2r5/8/8/2B5/8/8/8/2K3r1 w - - 0 1")
+            .ok()
+            .unwrap();
 
         let mv: Move = make_move(G1, C5);
 
@@ -633,7 +642,7 @@ pub mod test {
     #[test]
     fn cannot_block_checking_piece_while_pinned() {
         let gen: MoveGen = MoveGen::default();
-        let pos: BoardState = fen::parse("2r5/8/8/2B5/8/8/8/2K4r w - - 0 1");
+        let pos: BoardState = fen::parse("2r5/8/8/2B5/8/8/8/2K4r w - - 0 1").ok().unwrap();
 
         let king_square = king_square(&pos);
         let blockers = gen.calculate_blockers(&pos, king_square);
@@ -649,7 +658,7 @@ pub mod test {
     #[test]
     fn cannot_move_pinned_piece() {
         let gen: MoveGen = MoveGen::default();
-        let pos: BoardState = fen::parse("8/8/8/8/1K1N3r/8/8/8 w - - 0 1");
+        let pos: BoardState = fen::parse("8/8/8/8/1K1N3r/8/8/8 w - - 0 1").ok().unwrap();
 
         let king_square = king_square(&pos);
         let blockers = gen.calculate_blockers(&pos, king_square);
@@ -674,7 +683,7 @@ pub mod test {
     #[test]
     fn can_move_piece_along_pinned_ray() {
         let gen: MoveGen = MoveGen::default();
-        let pos = fen::parse("8/8/8/8/8/8/1K3R1r/8 w - - 0 1");
+        let pos = fen::parse("8/8/8/8/8/8/1K3R1r/8 w - - 0 1").ok().unwrap();
 
         let king_square = king_square(&pos);
         let blockers = gen.calculate_blockers(&pos, king_square);
@@ -721,7 +730,7 @@ pub mod test {
     #[test]
     fn cannot_move_non_king_with_multiple_checkers() {
         let gen: MoveGen = MoveGen::default();
-        let pos = fen::parse("8/1r6/8/8/3N4/8/1K5r/8 w - - 0 1");
+        let pos = fen::parse("8/1r6/8/8/3N4/8/1K5r/8 w - - 0 1").ok().unwrap();
 
         let king_square = king_square(&pos);
         let blockers = gen.calculate_blockers(&pos, king_square);
@@ -737,7 +746,7 @@ pub mod test {
     #[test]
     fn can_move_king() {
         let gen: MoveGen = MoveGen::default();
-        let pos = fen::parse("8/8/8/8/8/8/1K5r/8 w - - 0 1");
+        let pos = fen::parse("8/8/8/8/8/8/1K5r/8 w - - 0 1").ok().unwrap();
 
         let mv = make_move(A2, B2);
         assert_eq!(gen.is_attacked(&pos, mv.to), true);
@@ -749,7 +758,7 @@ pub mod test {
     #[test]
     fn cannot_block_using_xray() {
         let gen: MoveGen = MoveGen::default();
-        let pos: BoardState = fen::parse("8/8/8/8/8/3B4/3K3r/8 w - - 0 1");
+        let pos: BoardState = fen::parse("8/8/8/8/8/3B4/3K3r/8 w - - 0 1").ok().unwrap();
 
         let king_square = king_square(&pos);
         let blockers = gen.calculate_blockers(&pos, king_square);
@@ -771,7 +780,7 @@ pub mod test {
     #[test]
     fn king_cannot_castle_through_check() {
         let gen: MoveGen = MoveGen::default();
-        let pos: BoardState = fen::parse("8/8/8/8/8/3b4/8/R3K2R w KQ - 0 1");
+        let pos: BoardState = fen::parse("8/8/8/8/8/3b4/8/R3K2R w KQ - 0 1").ok().unwrap();
         let _mv: Move = make_move(C2, D3);
         let mv: Move = Move {
             to: 0,
@@ -784,7 +793,7 @@ pub mod test {
     #[test]
     fn king_cannot_castle_in_check() {
         let gen: MoveGen = MoveGen::default();
-        let pos: BoardState = fen::parse("8/8/8/8/8/2b5/8/R3K2R w KQ - 0 1");
+        let pos: BoardState = fen::parse("8/8/8/8/8/2b5/8/R3K2R w KQ - 0 1").ok().unwrap();
         let mv: Move = Move {
             to: 0,
             from: 0,
@@ -796,7 +805,7 @@ pub mod test {
     #[test]
     pub fn en_passant_discovered_check() {
         let gen: MoveGen = MoveGen::default();
-        let pos: BoardState = fen::parse("8/8/8/K2Pp2q/8/8/8/8 w - e6 0 1");
+        let pos: BoardState = fen::parse("8/8/8/K2Pp2q/8/8/8/8 w - e6 0 1").ok().unwrap();
         let mv: Move = Move {
             to: E6 as SquareIndex,
             from: D5 as SquareIndex,
@@ -811,7 +820,7 @@ pub mod test {
     #[test]
     fn en_passant_out_of_check() {
         let gen: MoveGen = MoveGen::default();
-        let pos: BoardState = fen::parse("8/8/8/3Pp2q/3K4/8/8/8 w - e6 0 1");
+        let pos: BoardState = fen::parse("8/8/8/3Pp2q/3K4/8/8/8 w - e6 0 1").ok().unwrap();
         let mv: Move = Move {
             to: E6 as SquareIndex,
             from: D5 as SquareIndex,
@@ -826,7 +835,9 @@ pub mod test {
     #[test]
     fn random_fen_1() {
         let gen: MoveGen = MoveGen::default();
-        let pos: BoardState = fen::parse("8/2p5/3p4/KP5r/5R1k/8/4P1P1/8 b - - 0 1");
+        let pos: BoardState = fen::parse("8/2p5/3p4/KP5r/5R1k/8/4P1P1/8 b - - 0 1")
+            .ok()
+            .unwrap();
         let mv: Move = Move {
             to: G5 as SquareIndex,
             from: H4 as SquareIndex,
@@ -847,7 +858,9 @@ pub mod test {
     fn random_fen_2() {
         let gen: MoveGen = MoveGen::default();
         let pos: BoardState =
-            fen::parse("rnbqk1nr/pppp1ppp/8/4p3/1b1P4/P7/1PP1PPPP/RNBQKBNR w KQkq - 0 1");
+            fen::parse("rnbqk1nr/pppp1ppp/8/4p3/1b1P4/P7/1PP1PPPP/RNBQKBNR w KQkq - 0 1")
+                .ok()
+                .unwrap();
         let mv: Move = Move {
             to: B4 as SquareIndex,
             from: A3 as SquareIndex,
@@ -868,7 +881,9 @@ pub mod test {
     fn random_fen_3() {
         let gen: MoveGen = MoveGen::default();
         let pos: BoardState =
-            fen::parse("r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/P1N2Q1p/1PPBBPPP/R3K2R w KQkq - 0 1");
+            fen::parse("r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/P1N2Q1p/1PPBBPPP/R3K2R w KQkq - 0 1")
+                .ok()
+                .unwrap();
         let mv = Move {
             to: A3 as SquareIndex,
             from: B4 as SquareIndex,
@@ -889,7 +904,9 @@ pub mod test {
     fn random_fen_4() {
         let gen: MoveGen = MoveGen::default();
         let pos: BoardState =
-            fen::parse("r3k2r/p1ppqpb1/bn2pnp1/3PN3/Pp2P3/2N2Q1p/1PPBBPPP/R3K2R w KQkq a3 0 1");
+            fen::parse("r3k2r/p1ppqpb1/bn2pnp1/3PN3/Pp2P3/2N2Q1p/1PPBBPPP/R3K2R w KQkq a3 0 1")
+                .ok()
+                .unwrap();
         let mv = Move {
             to: A3 as SquareIndex,
             from: B4 as SquareIndex,
@@ -910,7 +927,9 @@ pub mod test {
     fn castle_through_knight_attacks() {
         let gen: MoveGen = MoveGen::default();
         let pos: BoardState =
-            fen::parse("r3k2r/p1ppqpb1/bnN1pnp1/3P4/1p2P3/2N2Q1p/PPPBBPPP/R3K2R b KQkq - 0 1");
+            fen::parse("r3k2r/p1ppqpb1/bnN1pnp1/3P4/1p2P3/2N2Q1p/PPPBBPPP/R3K2R b KQkq - 0 1")
+                .ok()
+                .unwrap();
         let mv: Move = Move {
             to: C8 as SquareIndex,
             from: E8 as SquareIndex,
@@ -931,7 +950,9 @@ pub mod test {
     fn castle_through_more_knight_attacks() {
         let gen: MoveGen = MoveGen::default();
         let pos: BoardState =
-            fen::parse("r3k2r/p1ppqpb1/bn2pnN1/3P4/1p2P3/2N2Q1p/PPPBBPPP/R3K2R b KQkq - 0 1");
+            fen::parse("r3k2r/p1ppqpb1/bn2pnN1/3P4/1p2P3/2N2Q1p/PPPBBPPP/R3K2R b KQkq - 0 1")
+                .ok()
+                .unwrap();
         let mv: Move = Move {
             to: G8 as SquareIndex,
             from: E8 as SquareIndex,
@@ -952,7 +973,9 @@ pub mod test {
     fn castle_through_even_more_knight_attacks() {
         let gen: MoveGen = MoveGen::default();
         let pos: BoardState =
-            fen::parse("r3k2r/p1ppqNb1/bn2pn2/3P4/1p2P3/2N2Q1p/PPPBBPPP/R3K2R b KQkq - 0 1");
+            fen::parse("r3k2r/p1ppqNb1/bn2pn2/3P4/1p2P3/2N2Q1p/PPPBBPPP/R3K2R b KQkq - 0 1")
+                .ok()
+                .unwrap();
         let mv: Move = Move {
             to: C8 as SquareIndex,
             from: E8 as SquareIndex,
@@ -973,7 +996,9 @@ pub mod test {
     fn queen_captures() {
         let gen: MoveGen = MoveGen::default();
         let pos: BoardState =
-            fen::parse("r3k2r/p1ppqpb1/1n2pnp1/3PN3/1p2P3/2N2Q1p/PPPBbPPP/R2K3R w KQkq - 0 1");
+            fen::parse("r3k2r/p1ppqpb1/1n2pnp1/3PN3/1p2P3/2N2Q1p/PPPBbPPP/R2K3R w KQkq - 0 1")
+                .ok()
+                .unwrap();
         let mv: Move = Move {
             to: E2 as SquareIndex,
             from: F3 as SquareIndex,
@@ -994,7 +1019,9 @@ pub mod test {
     fn capture_checker_behind_ray() {
         let gen: MoveGen = MoveGen::default();
         let pos: BoardState =
-            fen::parse("r3k2r/p1pp1pb1/bn2pnp1/1B1PN3/1pq1P3/2N2Q1p/PPPB1PPP/R4K1R w kq - 4 3");
+            fen::parse("r3k2r/p1pp1pb1/bn2pnp1/1B1PN3/1pq1P3/2N2Q1p/PPPB1PPP/R4K1R w kq - 4 3")
+                .ok()
+                .unwrap();
         let mv: Move = Move {
             to: C4 as SquareIndex,
             from: B5 as SquareIndex,
@@ -1015,7 +1042,9 @@ pub mod test {
     fn challenge() {
         let gen: MoveGen = MoveGen::default();
         let pos: BoardState =
-            fen::parse("r6r/1bp2pP1/R2qkn2/1P6/1pPQ4/1B3N2/1B1P2p1/4K2R b K c3 0 1");
+            fen::parse("r6r/1bp2pP1/R2qkn2/1P6/1pPQ4/1B3N2/1B1P2p1/4K2R b K c3 0 1")
+                .ok()
+                .unwrap();
         let mv: Move = Move {
             to: C3 as SquareIndex,
             from: B4 as SquareIndex,
@@ -1035,7 +1064,7 @@ pub mod test {
     #[test]
     fn castle_pawn_attacks() {
         let gen: MoveGen = MoveGen::default();
-        let pos: BoardState = fen::parse("8/8/8/8/8/8/6p1/4K2R w K - 0 1");
+        let pos: BoardState = fen::parse("8/8/8/8/8/8/6p1/4K2R w K - 0 1").ok().unwrap();
         let mv: Move = Move {
             to: E1 as SquareIndex,
             from: G1 as SquareIndex,
@@ -1055,7 +1084,7 @@ pub mod test {
     #[test]
     fn captures_attacker_on_ray() {
         let gen: MoveGen = MoveGen::default();
-        let pos: BoardState = fen::parse("8/8/8/8/8/8/1K1R2r1/8 w - - 0 1");
+        let pos: BoardState = fen::parse("8/8/8/8/8/8/1K1R2r1/8 w - - 0 1").ok().unwrap();
         let mv: Move = Move {
             to: G2 as SquareIndex,
             from: D2 as SquareIndex,
@@ -1074,7 +1103,7 @@ pub mod test {
 
     #[test]
     fn castles_no_obstruction() {
-        let pos: BoardState = fen::parse("8/8/8/8/8/8/8/R3K2R w KQ - 0 1");
+        let pos: BoardState = fen::parse("8/8/8/8/8/8/8/R3K2R w KQ - 0 1").ok().unwrap();
         let mut list: Vec<Move> = Vec::with_capacity(256);
         MoveGen::gen_pseudo_legal_castles(&pos, &mut list);
         assert_eq!(list.len(), 2);
@@ -1082,12 +1111,12 @@ pub mod test {
 
     #[test]
     fn no_castles_with_obstruction() {
-        let pos: BoardState = fen::parse("8/8/8/8/8/8/8/R3KB1R w KQ - 0 1");
+        let pos: BoardState = fen::parse("8/8/8/8/8/8/8/R3KB1R w KQ - 0 1").ok().unwrap();
         let mut list: Vec<Move> = Vec::with_capacity(256);
         MoveGen::gen_pseudo_legal_castles(&pos, &mut list);
         assert_eq!(list.len(), 1);
 
-        let pos: BoardState = fen::parse("8/8/8/8/8/8/8/R1B1K2R w KQ - 0 1");
+        let pos: BoardState = fen::parse("8/8/8/8/8/8/8/R1B1K2R w KQ - 0 1").ok().unwrap();
         let mut list: Vec<Move> = Vec::with_capacity(256);
         MoveGen::gen_pseudo_legal_castles(&pos, &mut list);
         assert_eq!(list.len(), 1);
@@ -1095,7 +1124,7 @@ pub mod test {
 
     #[test]
     fn no_castles_without_rights() {
-        let pos: BoardState = fen::parse("8/8/8/8/8/8/8/R3K2R w K - 0 1");
+        let pos: BoardState = fen::parse("8/8/8/8/8/8/8/R3K2R w K - 0 1").ok().unwrap();
         let mut list: Vec<Move> = Vec::with_capacity(256);
         MoveGen::gen_pseudo_legal_castles(&pos, &mut list);
         assert_eq!(list.len(), 1);
@@ -1104,7 +1133,9 @@ pub mod test {
     #[test]
     fn black_queenside_castle() {
         let pos: BoardState =
-            fen::parse("r3k2r/p1ppq1b1/bn2pn2/3P2N1/1p2P3/2N2Q1p/PPPBBPPP/R3K2R b KQkq - 0 1");
+            fen::parse("r3k2r/p1ppq1b1/bn2pn2/3P2N1/1p2P3/2N2Q1p/PPPBBPPP/R3K2R b KQkq - 0 1")
+                .ok()
+                .unwrap();
         let mut list: Vec<Move> = Vec::with_capacity(256);
         MoveGen::gen_pseudo_legal_castles(&pos, &mut list);
         let _m1 = list.get(0).unwrap();
@@ -1113,7 +1144,9 @@ pub mod test {
     }
     #[test]
     fn gen_random_pawn_moves1() {
-        let pos: BoardState = fen::parse("3N4/1p1N2R1/kp3PQp/8/p2P4/B7/6p1/b2b2K1 w - - 0 1");
+        let pos: BoardState = fen::parse("3N4/1p1N2R1/kp3PQp/8/p2P4/B7/6p1/b2b2K1 w - - 0 1")
+            .ok()
+            .unwrap();
         let mut list: Vec<Move> = Vec::with_capacity(256);
         MoveGen::gen_pseudo_legal_pawn_moves(&pos, &mut list);
         assert_eq!(list.len(), 2);
@@ -1121,7 +1154,9 @@ pub mod test {
 
     #[test]
     fn gen_random_pawn_moves2() {
-        let pos: BoardState = fen::parse("8/1P5n/1NB5/2KbQ1P1/2n5/p4R2/Pp2p3/1k2b3 w - - 0 1");
+        let pos: BoardState = fen::parse("8/1P5n/1NB5/2KbQ1P1/2n5/p4R2/Pp2p3/1k2b3 w - - 0 1")
+            .ok()
+            .unwrap();
         let mut list: Vec<Move> = Vec::with_capacity(256);
         MoveGen::gen_pseudo_legal_pawn_moves(&pos, &mut list);
         assert_eq!(list.len(), 5);
@@ -1129,7 +1164,9 @@ pub mod test {
 
     #[test]
     fn gen_random_pawn_moves3() {
-        let pos: BoardState = fen::parse("3r2r1/P6b/q2pKPk1/4P3/1p1P1R2/5n2/1B2N3/8 w - - 0 1");
+        let pos: BoardState = fen::parse("3r2r1/P6b/q2pKPk1/4P3/1p1P1R2/5n2/1B2N3/8 w - - 0 1")
+            .ok()
+            .unwrap();
         let mut list: Vec<Move> = Vec::with_capacity(256);
         MoveGen::gen_pseudo_legal_pawn_moves(&pos, &mut list);
         assert_eq!(list.len(), 7);
@@ -1137,7 +1174,9 @@ pub mod test {
 
     #[test]
     fn gen_random_pawn_moves4() {
-        let pos: BoardState = fen::parse("8/4PP2/2n3p1/6P1/2p1p2q/K1P3k1/b1p1P1B1/2R5 w - - 0 1");
+        let pos: BoardState = fen::parse("8/4PP2/2n3p1/6P1/2p1p2q/K1P3k1/b1p1P1B1/2R5 w - - 0 1")
+            .ok()
+            .unwrap();
         let mut list: Vec<Move> = Vec::with_capacity(256);
         MoveGen::gen_pseudo_legal_pawn_moves(&pos, &mut list);
         assert_eq!(list.len(), 9);
@@ -1145,7 +1184,9 @@ pub mod test {
 
     #[test]
     fn gen_random_pawn_moves5() {
-        let pos: BoardState = fen::parse("3bBr2/8/P7/2PPp3/1N6/3bK2R/2Pp4/1k1qN3 w - d6 0 1");
+        let pos: BoardState = fen::parse("3bBr2/8/P7/2PPp3/1N6/3bK2R/2Pp4/1k1qN3 w - d6 0 1")
+            .ok()
+            .unwrap();
         let mut list: Vec<Move> = Vec::with_capacity(256);
         MoveGen::gen_pseudo_legal_pawn_moves(&pos, &mut list);
         assert_eq!(list.len(), 7);
@@ -1177,7 +1218,9 @@ pub mod test {
 
     #[test]
     fn gen_en_passant() {
-        let pos: BoardState = fen::parse("8/8/3p4/KPp4r/5R1k/8/8/8 w - c6 0 1");
+        let pos: BoardState = fen::parse("8/8/3p4/KPp4r/5R1k/8/8/8 w - c6 0 1")
+            .ok()
+            .unwrap();
         let mut list: Vec<Move> = Vec::with_capacity(256);
         MoveGen::gen_pseudo_legal_pawn_moves(&pos, &mut list);
         assert_eq!(list.len(), 2);
@@ -1185,7 +1228,7 @@ pub mod test {
 
     #[test]
     fn gen_a3_to_b4() {
-        let pos: BoardState = fen::parse("8/8/8/8/1p6/P7/8/8 w - - 0 1");
+        let pos: BoardState = fen::parse("8/8/8/8/1p6/P7/8/8 w - - 0 1").ok().unwrap();
         let mut list: Vec<Move> = Vec::with_capacity(256);
         MoveGen::gen_pseudo_legal_pawn_moves(&pos, &mut list);
         assert_eq!(list.len(), 2);
@@ -1193,7 +1236,9 @@ pub mod test {
 
     #[test]
     fn king_move_removed() {
-        let board = fen::parse("rnbqkb1r/1ppppppp/p6n/8/8/3P4/PPP1PPPP/RN1QKBNR w KQkq - 1 2");
+        let board = fen::parse("rnbqkb1r/1ppppppp/p6n/8/8/3P4/PPP1PPPP/RN1QKBNR w KQkq - 1 2")
+            .ok()
+            .unwrap();
         let gen = MoveGen::default();
         assert_eq!(
             true,

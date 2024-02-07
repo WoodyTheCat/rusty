@@ -8,7 +8,5 @@ mod types;
 mod uci;
 
 fn main() {
-    uci::uci_loop();
-
-    println!("\n-- Finished Executing --");
+    let _ = uci::uci_loop();
 }

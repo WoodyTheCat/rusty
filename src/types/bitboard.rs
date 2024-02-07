@@ -1,5 +1,5 @@
 use crate::types::{
-    r#move::{Move, MoveType},
+    chess_move::{Move, MoveType},
     square::SquareIndex,
     *,
 };
@@ -87,7 +87,8 @@ pub trait BBMethods {
     fn clear_at(&mut self, index: usize);
     fn extract_moves(&mut self, original: SquareIndex, flag: MoveType) -> Vec<Move>;
     fn add_at(&mut self, square: SquareIndex);
-    fn debug(&self);
+    // fn debug(&self);
+    fn merge(&mut self, other: BB);
 }
 
 impl BBMethods for BB {
@@ -128,19 +129,23 @@ impl BBMethods for BB {
         moves
     }
 
-    fn debug(&self) {
-        print!("bitboard {{");
-        for rank in (0..8).rev() {
-            print!("\n   ");
-            for file in 0..8 {
-                if self.has(1 << (rank as u64 * 8 + file as u64)) {
-                    print!(" X");
-                } else {
-                    print!(" .");
-                }
-            }
-        }
-        print!("\n}}");
+    // fn debug(&self) {
+    //     print!("bitboard {{");
+    //     for rank in (0..8).rev() {
+    //         print!("\n   ");
+    //         for file in 0..8 {
+    //             if self.has(1 << (rank as u64 * 8 + file as u64)) {
+    //                 print!(" X");
+    //             } else {
+    //                 print!(" .");
+    //             }
+    //         }
+    //     }
+    //     print!("\n}}");
+    // }
+
+    fn merge(&mut self, other: BB) {
+        *self |= other;
     }
 }
 
