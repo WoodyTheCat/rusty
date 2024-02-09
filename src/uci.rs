@@ -3,12 +3,12 @@ use std::io::{stdin, BufRead};
 use crate::{
     fen,
     movegen::MoveGen,
-    search::{perft::Perft, NegaMax},
+    search::{perft::Perft, NegaMax, Searcher},
     types::{board_state::BoardState, chess_move::Move, EngineError},
 };
 
 pub fn uci_loop() -> Result<(), EngineError> {
-    let mut board: BoardState = fen::parse(fen::START).ok().unwrap();
+    let mut board: BoardState = fen::parse(fen::START)?;
     let mut searcher: NegaMax = NegaMax::default();
 
     loop {
@@ -34,8 +34,8 @@ pub fn uci_execute(board: &mut BoardState, searcher: &mut NegaMax) -> Result<(),
             *board = update_board(rest)?;
         }
 
-        "go" => go(board, searcher, rest),
-        "moves" => moves(&board),
+        "go" => go(board, searcher, rest)?,
+        "move" => do_move(board, rest)?,
         "isready" => println!("readyok"),
         "ucinewgame" => {}
         "d" => println!("\n{}", board),
@@ -62,43 +62,60 @@ fn update_board<'b>(args: &str) -> Result<BoardState, EngineError> {
     let (keyword, rest) = args.split_once(char::is_whitespace).unwrap_or((args, ""));
 
     if keyword == "start" {
-        let mut pos: BoardState = fen::parse(fen::START)?;
+        let mut board: BoardState = fen::parse(fen::START)?;
         let tokens: Vec<&str> = rest.split(char::is_whitespace).collect();
 
         if tokens[0] == "move" {
             let mut gen: MoveGen = MoveGen::default();
             for notation in tokens[1..].iter() {
-                apply_move(&mut pos, *notation, &mut gen)?;
+                apply_move(&mut board, *notation, &mut gen)?;
             }
         }
 
-        Ok(pos)
+        Ok(board)
     } else {
         fen::parse(rest)
     }
 }
 
-fn go(pos: &mut BoardState, searcher: &mut NegaMax, data: &str) {
+fn go<S>(board: &mut BoardState, searcher: &mut S, rest: &str) -> Result<(), EngineError>
+where
+    S: Searcher,
+{
     // let movetime = data[2].parse::<u128>().unwrap();
     // searcher.move_time((movetime / 1000) - 1);
     // searcher.move_time(movetime);
-    // let mv = searcher.best_move_depth(pos, 15);
-    // println!("eval: {}", mv.eval);
-    // println!("static eval: {}", eval(pos));
-    // println!("bestmove {}", mv.mv.to_algebraic());
+
+    let depth = rest.parse::<i32>().map_err(Into::<EngineError>::into)?;
+
+    let (mv, eval) = searcher.search(*board, depth)?;
+
+    println!("eval {}", eval);
+
+    if let Some(mv) = mv {
+        println!("bestmove {}", mv);
+    }
+
+    Ok(())
 }
 
-fn moves(board: &BoardState) {
-    let mut gen: MoveGen = MoveGen::default();
-    let move_list: Vec<Move> = gen.trace_generate(board).ok().unwrap();
+fn do_move(board: &mut BoardState, rest: &str) -> Result<(), EngineError> {
+    let mv: Move = rest.to_string().into();
+    board.make_move(&mv)?;
+
+    Ok(())
 }
 
-fn apply_move(pos: &mut BoardState, notation: &str, gen: &mut MoveGen) -> Result<(), EngineError> {
-    let move_list: Vec<Move> = gen.all_moves(pos)?;
+fn apply_move(
+    board: &mut BoardState,
+    notation: &str,
+    gen: &mut MoveGen,
+) -> Result<(), EngineError> {
+    let move_list: Vec<Move> = gen.all_moves(board)?;
     let mv: Option<&Move> = move_list
         .iter()
         .find(|x: &&Move| x.to_notation() == notation);
-    pos.make_move(mv.unwrap());
+    board.make_move(mv.unwrap())?;
 
     Ok(())
 }

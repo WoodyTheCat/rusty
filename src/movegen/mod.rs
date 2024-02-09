@@ -34,6 +34,12 @@ impl Default for MoveGen {
 const MAX_MOVES: usize = 256;
 
 impl MoveGen {
+    pub fn is_check(&self, board: &BoardState, colour: Colour) -> bool {
+        let king = board.position.bb(colour, King).trailing_zeros() as SquareIndex;
+
+        self.is_attacked(board, king)
+    }
+
     pub fn trace_generate(&mut self, board: &BoardState) -> Result<Vec<Move>, EngineError> {
         println!("\n -- Trace Move Generation -- \n");
 
@@ -162,8 +168,8 @@ impl MoveGen {
             let captures: u64 = destinations & opponent_pieces;
             let quiets: u64 = destinations & empty_squares;
 
-            Self::extract_moves(square, captures, list, Capture);
-            Self::extract_moves(square, quiets, list, Quiet);
+            Self::extract_moves(square, captures, list, Normal);
+            Self::extract_moves(square, quiets, list, Normal);
         }
     }
 
@@ -195,8 +201,8 @@ impl MoveGen {
         let single: BB = pawns.shift(dir.north) & empty_squares;
         let double: BB = (single & dir.rank3).shift(dir.north) & empty_squares;
 
-        Self::extract_pawn_moves(single, dir.north, Quiet, list);
-        Self::extract_pawn_moves(double, dir.north * 2, Quiet, list);
+        Self::extract_pawn_moves(single, dir.north, Normal, list);
+        Self::extract_pawn_moves(double, dir.north * 2, Normal, list);
     }
 
     fn gen_pawn_captures(board: &BoardState, list: &mut Vec<Move>, pawns: BB, dir: PawnDir) {
@@ -207,8 +213,8 @@ impl MoveGen {
         let left_captures: BB = pawns.shift(dir.north + WEST) & valid_captures;
         let right_captures: BB = pawns.shift(dir.north + EAST) & valid_captures;
 
-        Self::extract_pawn_moves(left_captures, dir.north + WEST, Capture, list);
-        Self::extract_pawn_moves(right_captures, dir.north + EAST, Capture, list);
+        Self::extract_pawn_moves(left_captures, dir.north + WEST, Normal, list);
+        Self::extract_pawn_moves(right_captures, dir.north + EAST, Normal, list);
     }
 
     fn gen_en_passant(board: &BoardState, list: &mut Vec<Move>, pawns: BB, dir: PawnDir) {
@@ -391,7 +397,7 @@ impl MoveGen {
         let temp_mv: Move = Move {
             to: mv.to,
             from: mv.from,
-            kind: Capture,
+            kind: Normal,
         };
 
         let blockers: BB = self.calculate_blockers(&copy, king_square);
@@ -611,7 +617,7 @@ pub mod test {
         Move {
             to: to as SquareIndex,
             from: from as SquareIndex,
-            kind: Quiet,
+            kind: Normal,
         }
     }
 
@@ -841,7 +847,7 @@ pub mod test {
         let mv: Move = Move {
             to: G5 as SquareIndex,
             from: H4 as SquareIndex,
-            kind: MoveType::Quiet,
+            kind: MoveType::Normal,
         };
 
         let king_square = king_square(&pos);
@@ -864,7 +870,7 @@ pub mod test {
         let mv: Move = Move {
             to: B4 as SquareIndex,
             from: A3 as SquareIndex,
-            kind: MoveType::Capture,
+            kind: MoveType::Normal,
         };
 
         let king_square = king_square(&pos);
@@ -887,7 +893,7 @@ pub mod test {
         let mv = Move {
             to: A3 as SquareIndex,
             from: B4 as SquareIndex,
-            kind: MoveType::Capture,
+            kind: MoveType::Normal,
         };
 
         let king_square = king_square(&pos);
@@ -1002,7 +1008,7 @@ pub mod test {
         let mv: Move = Move {
             to: E2 as SquareIndex,
             from: F3 as SquareIndex,
-            kind: MoveType::Capture,
+            kind: MoveType::Normal,
         };
 
         let king_square = king_square(&pos);
@@ -1025,7 +1031,7 @@ pub mod test {
         let mv: Move = Move {
             to: C4 as SquareIndex,
             from: B5 as SquareIndex,
-            kind: MoveType::Capture,
+            kind: MoveType::Normal,
         };
 
         let king_square = king_square(&pos);
@@ -1088,7 +1094,7 @@ pub mod test {
         let mv: Move = Move {
             to: G2 as SquareIndex,
             from: D2 as SquareIndex,
-            kind: MoveType::Capture,
+            kind: MoveType::Normal,
         };
 
         let king_square = king_square(&pos);
@@ -1196,7 +1202,7 @@ pub mod test {
     fn extract_basic_pawn_moves() {
         let b = RANK2;
         let mut moves: Vec<Move> = Vec::new();
-        MoveGen::extract_pawn_moves(b, NORTH, Quiet, &mut moves);
+        MoveGen::extract_pawn_moves(b, NORTH, Normal, &mut moves);
         assert_eq!(moves.len(), 8);
         assert_eq!(moves.get(0).unwrap().to, 8);
         assert_eq!(moves.get(1).unwrap().to, 9);
@@ -1208,7 +1214,7 @@ pub mod test {
     fn extract_random_pawns() {
         let b: BB = 0x200008000000;
         let mut moves: Vec<Move> = Vec::new();
-        MoveGen::extract_pawn_moves(b, NORTH, Quiet, &mut moves);
+        MoveGen::extract_pawn_moves(b, NORTH, Normal, &mut moves);
         assert_eq!(moves.len(), 2);
         assert_eq!(moves.get(0).unwrap().to, D4 as SquareIndex);
         assert_eq!(moves.get(0).unwrap().from, D3 as SquareIndex);
@@ -1247,7 +1253,7 @@ pub mod test {
                 &Move {
                     from: 4,
                     to: 11,
-                    kind: Quiet
+                    kind: Normal
                 },
                 0,
                 0,

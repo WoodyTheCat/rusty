@@ -30,13 +30,13 @@ impl Perft {
         let temp: Move = Move {
             from: G8 as SquareIndex,
             to: H6 as SquareIndex,
-            kind: Capture,
+            kind: Normal,
         };
 
         let mut trace = false;
 
         for mv in &moves {
-            let new_board: BoardState = board.clone_with_move(mv);
+            let new_board: BoardState = board.clone_with_move(mv)?;
 
             if *mv == temp {
                 println!("HIT ↓");
@@ -88,7 +88,7 @@ impl Perft {
 
         let mut sum: usize = 0;
         for mv in &moves {
-            let new_board: BoardState = board.clone_with_move(mv);
+            let new_board: BoardState = board.clone_with_move(mv)?;
             sum += self.perft_inner(&new_board, depth - 1, trace)?;
         }
         Ok(sum)

@@ -8,11 +8,28 @@ use std::{fmt::Display, slice::Iter};
 
 use super::square::SquareIndexMethods;
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub struct Move {
     pub from: SquareIndex,
     pub to: SquareIndex,
     pub kind: MoveType,
+}
+
+impl From<String> for Move {
+    fn from(value: String) -> Self {
+        let from: SquareIndex = SquareIndex::parse(&value[0..2]);
+        let to: SquareIndex = SquareIndex::parse(&value[2..4]);
+        let kind: MoveType = match &value[4..] {
+            "=n" => MoveType::KnightPromotion,
+            "=b" => MoveType::BishopPromotion,
+            "=r" => MoveType::RookPromotion,
+            "=q" => MoveType::QueenPromotion,
+            "" => MoveType::Normal,
+            _ => todo!(),
+        };
+
+        Self { from, to, kind }
+    }
 }
 
 impl Display for Move {
@@ -36,6 +53,12 @@ impl Display for Move {
 }
 
 impl Move {
+    pub const NULL: Self = Self {
+        from: 0,
+        to: 0,
+        kind: Null,
+    };
+
     pub fn is_promotion_capture(&self) -> bool {
         static PROMOTIONS: [MoveType; 4] = [
             KnightPromotionCapture,
@@ -88,7 +111,7 @@ impl Move {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum MoveType {
-    Capture,
+    Normal,
     EnPassantCapture,
     KnightPromotion,
     BishopPromotion,
@@ -98,7 +121,6 @@ pub enum MoveType {
     BishopPromotionCapture,
     RookPromotionCapture,
     QueenPromotionCapture,
-    Quiet,
     CastleKing,
     CastleQueen,
     Null,

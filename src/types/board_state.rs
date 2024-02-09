@@ -50,15 +50,15 @@ impl BoardState {
         }
     }
 
-    pub fn clone_with_move(&self, mv: &Move) -> BoardState {
+    pub fn clone_with_move(&self, mv: &Move) -> Result<BoardState, EngineError> {
         let mut new_pos: BoardState = *self;
-        new_pos.make_move(mv);
-        new_pos
+        new_pos.make_move(mv)?;
+        Ok(new_pos)
     }
 
-    pub fn make_move(&mut self, mv: &Move) {
+    pub fn make_move(&mut self, mv: &Move) -> Result<(), EngineError> {
         if mv.kind == Null {
-            return;
+            return Ok(());
         }
 
         let kind: PieceType = self.position.type_at(mv.from).unwrap();
@@ -96,11 +96,13 @@ impl BoardState {
             Colour::Black => -8,
         };
 
-        if mv.kind == Quiet {
-            self.position.remove_piece(us, kind, mv.from);
-            self.position.add_piece(us, kind, mv.to);
-        } else if mv.kind == Capture {
-            self.capture(mv, us);
+        if mv.kind == Normal {
+            if self.at(mv.to)?.is_some() {
+                self.capture(mv, us);
+            } else {
+                self.position.remove_piece(us, kind, mv.from);
+                self.position.add_piece(us, kind, mv.to);
+            }
         } else if mv.kind == EnPassantCapture {
             self.position.remove_piece(us, kind, mv.from);
             self.position
@@ -132,6 +134,8 @@ impl BoardState {
         }
 
         self.switch();
+
+        Ok(())
     }
 
     fn make_rook_move(&mut self, mv: &Move) {

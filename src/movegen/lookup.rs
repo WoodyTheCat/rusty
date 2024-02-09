@@ -11,6 +11,8 @@ use crate::{
 
 use itertools::Itertools;
 
+use self::bitboard::ToBitboard;
+
 pub struct Lookup {
     knight_table: [BB; 64],
     king_table: [BB; 64],
@@ -101,8 +103,8 @@ impl Lookup {
 
         for piece in &[Rook, Bishop] {
             for (i, j) in (0..64).cartesian_product(0..64) {
-                let bitboard_i: BB = 1 << i;
-                let bitboard_j: BB = 1 << j;
+                let bitboard_i: BB = i.to_bitboard();
+                let bitboard_j: BB = j.to_bitboard();
                 let attacks_i = magics::get_slider_moves(i, 0, *piece == Rook);
 
                 if attacks_i & bitboard_j != 0 {
@@ -119,8 +121,7 @@ impl Lookup {
                                 | bitboard_i
                                 | bitboard_j
                         }
-                        // Can't happen ↓
-                        _ => {}
+                        _ => unreachable!(),
                     }
                 }
             }
@@ -132,17 +133,18 @@ impl Lookup {
 fn knight_destinations(square: SquareIndex) -> BB {
     let base_bb: BB = 1 << square;
 
-    let nnw: u64 = base_bb.checked_shl(15).unwrap_or(0) & !FILEH;
-    let nww: u64 = base_bb.checked_shl(6).unwrap_or(0) & !(FILEH | FILEG);
-    let nne: u64 = base_bb.checked_shl(17).unwrap_or(0) & !FILEA;
-    let nee: u64 = base_bb.checked_shl(10).unwrap_or(0) & !(FILEA | FILEB);
+    let directions: [BB; 8] = [
+        base_bb.checked_shl(15).unwrap_or(0) & !FILEH,
+        base_bb.checked_shl(6).unwrap_or(0) & !(FILEH | FILEG),
+        base_bb.checked_shl(17).unwrap_or(0) & !FILEA,
+        base_bb.checked_shl(10).unwrap_or(0) & !(FILEA | FILEB),
+        base_bb.checked_shr(15).unwrap_or(0) & !FILEA,
+        base_bb.checked_shr(6).unwrap_or(0) & !(FILEA | FILEB),
+        base_bb.checked_shr(17).unwrap_or(0) & !FILEH,
+        base_bb.checked_shr(10).unwrap_or(0) & !(FILEG | FILEH),
+    ];
 
-    let sse: u64 = base_bb.checked_shr(15).unwrap_or(0) & !FILEA;
-    let see: u64 = base_bb.checked_shr(6).unwrap_or(0) & !(FILEA | FILEB);
-    let ssw: u64 = base_bb.checked_shr(17).unwrap_or(0) & !FILEH;
-    let sww: u64 = base_bb.checked_shr(10).unwrap_or(0) & !(FILEG | FILEH);
-
-    nnw | nww | nne | nee | sww | ssw | sse | see
+    directions.iter().fold(0, |acc, e| acc | e)
 }
 
 fn king_destinations(square: SquareIndex) -> BB {
