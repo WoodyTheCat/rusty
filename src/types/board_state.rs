@@ -61,7 +61,11 @@ impl BoardState {
             return Ok(());
         }
 
-        let kind: PieceType = self.position.type_at(mv.from).unwrap();
+        let Some(kind) = self.position.type_at(mv.from) else {
+            return Err(EngineError(String::from(format!(
+                "No piece at 'from' whilst executing move: {mv:?} \n {self}",
+            ))));
+        };
         let us: Colour = self.active_player;
 
         if kind == King {
@@ -89,6 +93,10 @@ impl BoardState {
 
         if kind == Rook {
             self.make_rook_move(&mv);
+        }
+
+        if kind == King {
+            self.move_king(self.active_player);
         }
 
         let ep_offset: i8 = match us {
@@ -179,6 +187,19 @@ impl BoardState {
                 } else if mv.to == A1 as SquareIndex {
                     self.castling_rights[1] = false;
                 }
+            }
+        }
+    }
+
+    fn move_king(&mut self, active: Colour) {
+        match active {
+            Colour::White => {
+                self.castling_rights[0] = false;
+                self.castling_rights[1] = false;
+            }
+            Colour::Black => {
+                self.castling_rights[2] = false;
+                self.castling_rights[3] = false;
             }
         }
     }
