@@ -16,10 +16,17 @@ impl Default for Colour {
     }
 }
 
-crate::types::helpers::enum_char_conv! {
-    Colour, ColourParseError {
-        White = 'w',
-        Black = 'b'
+impl From<char> for Colour {
+    fn from(c: char) -> Self {
+        match c {
+            _ => {
+                if c.is_ascii_uppercase() {
+                    Self::White
+                } else {
+                    Self::Black
+                }
+            }
+        }
     }
 }
 

@@ -1,11 +1,17 @@
-use std::io::{stdin, BufRead};
-
+use crate::types::square::SquareIndexMethods;
 use crate::{
     fen,
     movegen::MoveGen,
     search::{perft::Perft, NegaMax, Searcher},
-    types::{board_state::BoardState, chess_move::Move, EngineError},
+    types::{
+        board_state::BoardState,
+        chess_move::{Move, MoveType},
+        colour::Colour::*,
+        square::SquareIndex,
+        EngineError,
+    },
 };
+use std::io::{stdin, BufRead};
 
 pub fn uci_loop() -> Result<(), EngineError> {
     let mut board: BoardState = fen::parse(fen::START)?;
@@ -30,7 +36,7 @@ pub fn uci_execute(board: &mut BoardState, searcher: &mut NegaMax) -> Result<(),
 
     match command {
         "uci" => init_uci(),
-        "pos" => {
+        "position" => {
             *board = update_board(rest)?;
         }
 
@@ -100,7 +106,47 @@ where
 }
 
 fn do_move(board: &mut BoardState, rest: &str) -> Result<(), EngineError> {
-    let mv: Move = rest.to_string().into();
+    let mv: Move = match rest {
+        "O-O" => {
+            let (from, to) = match board.active_player {
+                White => (4, 6),
+                Black => (60, 62),
+            };
+
+            Move {
+                from,
+                to,
+                kind: MoveType::CastleKing,
+            }
+        }
+        "O-O-O" => {
+            let (from, to) = match board.active_player {
+                White => (4, 2),
+                Black => (60, 58),
+            };
+
+            Move {
+                from,
+                to,
+                kind: MoveType::CastleQueen,
+            }
+        }
+        _ => {
+            let from: SquareIndex = SquareIndex::parse(&rest[0..2]);
+            let to: SquareIndex = SquareIndex::parse(&rest[2..4]);
+            let kind: MoveType = match &rest[4..] {
+                "=n" => MoveType::KnightPromotion,
+                "=b" => MoveType::BishopPromotion,
+                "=r" => MoveType::RookPromotion,
+                "=q" => MoveType::QueenPromotion,
+                "" => MoveType::Normal,
+                _ => todo!(),
+            };
+
+            Move { from, to, kind }
+        }
+    };
+
     board.make_move(&mv)?;
 
     Ok(())

@@ -15,23 +15,6 @@ pub struct Move {
     pub kind: MoveType,
 }
 
-impl From<String> for Move {
-    fn from(value: String) -> Self {
-        let from: SquareIndex = SquareIndex::parse(&value[0..2]);
-        let to: SquareIndex = SquareIndex::parse(&value[2..4]);
-        let kind: MoveType = match &value[4..] {
-            "=n" => MoveType::KnightPromotion,
-            "=b" => MoveType::BishopPromotion,
-            "=r" => MoveType::RookPromotion,
-            "=q" => MoveType::QueenPromotion,
-            "" => MoveType::Normal,
-            _ => todo!(),
-        };
-
-        Self { from, to, kind }
-    }
-}
-
 impl Display for Move {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}{}", self.from.to_algebraic(), self.to.to_algebraic())?;

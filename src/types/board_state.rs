@@ -4,7 +4,6 @@ use super::{
     bitboard::{ToBitboard, BB},
     chess_move::{Move, MoveType::*},
     colour::Colour,
-    piece::Piece,
     piece_type::PieceType::{self, *},
     position::Position,
     square::{Square::*, SquareIndex},
@@ -218,7 +217,11 @@ impl std::fmt::Display for BoardState {
                     self.at(i * 8 + j).map_err(Into::<std::fmt::Error>::into)?;
 
                 if let Some((piece, colour)) = piece {
-                    write!(f, " | {:?}", Piece::from_tuple(piece, colour))?;
+                    let mut c = PieceType::to_char(piece);
+                    if colour == Colour::Black {
+                        c.make_ascii_lowercase();
+                    }
+                    write!(f, " | {c}")?;
                 } else {
                     write!(f, " |  ")?;
                 }

@@ -1,7 +1,6 @@
 use crate::types::{
     board_state::BoardState,
     colour::Colour,
-    piece::Piece,
     piece_type::PieceType,
     position::Position,
     square::{SquareIndex, SquareIndexMethods},
@@ -19,54 +18,7 @@ pub fn parse(notation: &str) -> Result<BoardState, EngineError> {
         )));
     }
 
-    let mut position: Position = Position::default();
-
-    let mut rank: u64 = 7;
-    let mut file: u64 = 0;
-
-    for c in segments[0].chars() {
-        if c == '/' {
-            rank -= 1;
-            file = 0;
-            continue;
-        }
-
-        if c.is_numeric() {
-            file += c.to_digit(10).unwrap() as u64;
-            continue;
-        }
-
-        let colour_index: Colour = if c.is_uppercase() {
-            Colour::White
-        } else {
-            Colour::Black
-        };
-
-        let piece_index: PieceType = match c.to_ascii_uppercase() {
-            'P' => PieceType::Pawn,
-            'N' => PieceType::Knight,
-            'B' => PieceType::Bishop,
-            'R' => PieceType::Rook,
-            'Q' => PieceType::Queen,
-            'K' => PieceType::King,
-            c => {
-                return Err(EngineError(format!(
-                    "[fen::parse()] Unexpected piece character: {c}"
-                )))
-            }
-        };
-
-        let square: u64 = rank * 8 + file;
-
-        position.add_piece(colour_index, piece_index, square);
-
-        // Huh?
-        // position.colours_bb[colour_index] |= 1 << square;
-        // position.pieces_bb[piece_index] |= 1 << square;
-        // Duplicate
-
-        file += 1;
-    }
+    let position = parse_pieces(segments[0].as_str())?;
 
     let to_move: Colour = match segments[1].chars().next().unwrap() {
         'w' => Colour::White,
@@ -104,6 +56,38 @@ pub fn parse(notation: &str) -> Result<BoardState, EngineError> {
     })
 }
 
+fn parse_pieces(string: &str) -> Result<Position, EngineError> {
+    let mut pos = Position::default();
+
+    let s = string.split('/').collect::<Vec<&str>>();
+
+    for (rank, contents) in s.into_iter().enumerate() {
+        let mut file: u64 = 0;
+
+        let real_rank = 7 - rank as u64;
+
+        for c in contents.chars() {
+            match c {
+                c if c.is_alphabetic() => {
+                    let piece = PieceType::from_char(c)?;
+                    let colour: Colour = c.into();
+
+                    pos.add_piece(colour, piece, real_rank * 8 + file)
+                }
+                '1'..='8' => {
+                    file += char::to_digit(c, 10).unwrap() as u64;
+                }
+                c => return Err(EngineError(format!("Invalid fen character '{c}'"))),
+            }
+            if char::is_alphabetic(c) {
+                file += 1;
+            }
+        }
+    }
+
+    Ok(pos)
+}
+
 pub fn board_to_fen(board: &BoardState) -> Result<String, EngineError> {
     let mut fen: String = "".to_string();
 
@@ -118,10 +102,12 @@ pub fn board_to_fen(board: &BoardState) -> Result<String, EngineError> {
                     empty_files = 0;
                 }
 
-                let piece_string: Result<String, EngineError> =
-                    Piece::from_tuple(piece, colour).into();
+                let mut c = PieceType::to_char(piece);
+                if colour == Colour::Black {
+                    c.make_ascii_lowercase();
+                }
 
-                fen += piece_string?.as_str();
+                fen += c.to_string().as_str();
             } else {
                 empty_files += 1;
             }
