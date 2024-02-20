@@ -1,26 +1,99 @@
 use crate::types::{
+    bitboard::{PieceItr, BB},
     board_state::BoardState,
     colour::Colour::{self, *},
-    piece_type::PieceType::*,
+    piece_type::PieceType::{self, *},
 };
 
-const PAWN_VALUE: u32 = 1;
-const KNIGHT_VALUE: u32 = 3;
-const BISHOP_VALUE: u32 = 3;
-const ROOK_VALUE: u32 = 5;
-const QUEEN_VALUE: u32 = 9;
+#[rustfmt::skip]
+const PAWN_TABLE: [i32; 64] = [
+    0,  0,  0,  0,  0,  0,  0,  0,
+    0,  0,  0,  -5, -5, 0,  0,  0,
+    0,  2,  3,  4,  4,  3,  2,  0, 
+    0,  4,  6,  10, 10, 6,  4,  0,
+    0,  6,  9,  10, 10, 9,  6,  0,
+    4,  8,  12, 16, 16, 12, 8,  4,
+    5,  10, 15, 20, 20, 15, 10, 5,
+    0,  0,  0,  0,  0,  0,  0,  0,
+];
+
+#[rustfmt::skip]
+const KNIGHT_TABLE: [i32; 64] = [
+    -50, -40, -30, -20, -20, -30, -40, -50, 
+    -40, -15, 0,   0,   0,   0,   -15, -40,
+    -30, 0,   10,  15,  15,  10,  0,   -30, 
+    -20, 5,   15,  20,  20,  15,  5,   -20,
+    -20, 0,   15,  20,  20,  15,  0,   -20,
+    -30, 5,   10,  15,  15,  10,  5,   -30, 
+    -40, -15, 0,   5,   5,   0,   -15, -40,
+    -50, -40, -30, -20, -20, -30, -40, -50,
+];
+
+#[rustfmt::skip]
+const BISHOP_TABLE: [i32; 64] = [
+    -20, -10, -10, -10, -10, -10, -10, -20, 
+    -10, 0,   0,   0,   0,   0,   0,   -10,
+    -10, 0,   5,   10,  10,  5,   0,   -10,
+    -10, 5,   5,   10,  10,  5,   5,   -10,
+    -10, 0,   10,  10,  10,  10,  0,   -10,
+    -10, 10,  10,  10,  10,  10,  10,  -10, 
+    -10, 5,   0,   0,   0,   0,   5,   -10,
+    -20, -10, -10, -10, -10, -10, -10, -20,
+];
+
+#[rustfmt::skip]
+const ROOK_TABLE: [i32; 64] = [
+    0,  0,  0,  0,  0,  0,  0,  0,
+    5,  10, 10, 10, 10, 10, 10, 5,
+    -5, 0,  0,  0,  0,  0,  0,  -5,
+    -5, 0,  0,  0,  0,  0,  0,  -5, 
+    -5, 0,  0,  0,  0,  0,  0,  -5, 
+    -5, 0,  0,  0,  0,  0,  0,  -5,
+    -5, 0,  0,  0,  0,  0,  0,  -5, 
+    0,  0,  0,  5,  5,  0,  0,  0,
+];
+
+#[rustfmt::skip]
+const QUEEN_TABLE: [i32; 64] = [
+    -20, -10, -10, -5, -5,  -10, -10, -20,
+    -10, 0,   0,   0,   0,  0,   0,   -10,
+    -10, 0,   5,   5,   5,  5,   0,   -10,
+    -5,  0,   5,   5,   5,  5,   0,   -5,
+    0,   0,   5,   5,   5,  5,   0,   -5,
+    -10, 5,   5,   5,   5,  5,   0,   -10, 
+    -10, 0,   5,   0,   0,  0,   0,   -10,
+    -20, -10, -10, -5, -5,  -10, -10, -20,
+];
+
+#[rustfmt::skip]
+const KING_TABLE: [i32; 64] = [
+    -30, -40, -40, -50, -50, -40, -40, -30,
+    -30, -40, -40, -50, -50, -40, -40, -30,
+    -30, -40, -40, -50, -50, -40, -40, -30, 
+    -30, -40, -40, -50, -50, -40, -40, -30, 
+    -20, -30, -30, -40, -40, -30, -30, -20,
+    -10, -20, -20, -20, -20, -20, -20, -10,
+    20,  20,  0,   0,   0,   0,   20,  20,
+    20,  30,  10,  0,   0,   10,  30,  20,
+];
+
+const PAWN_VALUE: u32 = 1000;
+const KNIGHT_VALUE: u32 = 3000;
+const BISHOP_VALUE: u32 = 3200;
+const ROOK_VALUE: u32 = 5000;
+const QUEEN_VALUE: u32 = 9000;
 
 pub fn eval(board: &BoardState) -> i32 {
     let mut eval: [i32; 2] = [0; 2];
-    let coefficient: i32 = if board.active_player == White { 1 } else { -1 };
 
-    // Score based on number (and type) of pieces on board
     eval[0] = get_material_score(board, White) - get_material_score(board, Black);
+    eval[1] = get_piece_eval(board);
 
-    // TODO Score based on positions of pieces
-    // TODO Encourage using own king to push enemy king to edge of board in winning endgame
-
-    coefficient * eval.iter().sum::<i32>()
+    if board.active_player == White {
+        eval.iter().sum::<i32>()
+    } else {
+        -eval.iter().sum::<i32>()
+    }
 }
 
 fn get_material_score(board: &BoardState, colour: Colour) -> i32 {
@@ -33,6 +106,35 @@ fn get_material_score(board: &BoardState, colour: Colour) -> i32 {
     pieces[4] = board.position.bb(colour, Queen).count_ones() * QUEEN_VALUE;
 
     pieces.iter().sum::<u32>() as i32
+}
+
+fn get_piece_eval(board: &BoardState) -> i32 {
+    let mut eval: i32 = 0;
+    for (piece, table) in [
+        (Pawn, PAWN_TABLE),
+        (Knight, KNIGHT_TABLE),
+        (Bishop, BISHOP_TABLE),
+        (Rook, ROOK_TABLE),
+        (Queen, QUEEN_TABLE),
+        (King, KING_TABLE),
+    ] {
+        eval += eval_piece_type(board, piece, White, table);
+        eval -= eval_piece_type(board, piece, Black, table);
+    }
+
+    eval
+}
+
+fn eval_piece_type(board: &BoardState, piece: PieceType, colour: Colour, table: [i32; 64]) -> i32 {
+    let mut eval: i32 = 0;
+
+    let pieces: BB = board.position.bb(colour, piece);
+
+    for sq in pieces.iter() {
+        eval += table[sq as usize];
+    }
+
+    eval
 }
 
 // fn mop_up_eval(&self, colour: Colour,  our_material: MaterialInfo,  their_material: MaterialInfo) -> i32
