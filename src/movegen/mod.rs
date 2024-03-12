@@ -174,7 +174,7 @@ impl MoveGen {
     }
 
     fn extract_moves(from: SquareIndex, bb: BB, list: &mut Vec<Move>, kind: MoveType) {
-        for (square, _) in bb.iter() {
+        for square in bb.iter() {
             let m: Move = Move {
                 to: square,
                 from,
@@ -539,7 +539,7 @@ impl MoveGen {
     }
 
     pub fn extract_pawn_moves(bitboard: BB, offset: i8, kind: MoveType, moves: &mut Vec<Move>) {
-        for (square, _) in bitboard.iter() {
+        for square in bitboard.iter() {
             moves.push(Move {
                 to: square,
                 from: (square as i8 - offset) as u64,
@@ -574,7 +574,7 @@ impl PawnDir {
 }
 
 fn extract_promotions(bitboard: BB, offset: i8, moves: &mut Vec<Move>, kind: PromotionType) {
-    for (square, _) in bitboard.iter() {
+    for square in bitboard.iter() {
         let iter = match kind {
             PromotionType::Capture => MoveType::promotion_capture_iter(),
             PromotionType::Push => MoveType::promotion_iter(),

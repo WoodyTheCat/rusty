@@ -32,7 +32,7 @@ impl Iterator for BBIterator {
 
         let square: u64 = self.bb.trailing_zeros() as u64;
         self.bb &= self.bb - 1;
-        Some((square as SquareIndex, self.bb))
+        Some(square as SquareIndex)
     }
 }
 
